@@ -6,7 +6,14 @@
 *~
 
 # C building artifacts
-main.dSYM
-tb8
-a.out
+C/main.dSYM
+C/tb8
+C/a.out
 
+# Assembly building artifacts
+PAL/*.bin
+PAL/*.lst
+PAL/*.prm
+
+# Created tools
+tools/palbart

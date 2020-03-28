@@ -1,0 +1,10 @@
+/
+/ TB8 - Tiny BASIC for PDP8
+/ Copyright (c) 2020 Mats Engstrom
+/ Licensed under the MIT license
+/
+
+*200
+
+	nop
+$
