@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/.vscode": true,
+			"**/*.code-workspace": true,
+			"**/*~": true,
+			"**/main.dSYM": true
+		},
+		"editor.formatOnSave": true
+	}
+}

@@ -1,0 +1,6 @@
+BasedOnStyle: llvm
+IndentWidth: 4
+AllowShortIfStatementsOnASingleLine: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+BreakBeforeBraces: Attach
+ColumnLimit: 132
