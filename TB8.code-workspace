@@ -6,9 +6,15 @@
 	],
 	"settings": {
 		"files.exclude": {
+			".clang-format": true,
+			".editorconfig": true,
+			".gitignore": true,
+			"**/.hg": false,
+			"**/.svn": false,
 			"**/.vscode": true,
 			"**/*.code-workspace": true,
 			"**/*~": true,
+			"**/CVS": false,
 			"**/main.dSYM": true
 		},
 		"editor.formatOnSave": true
