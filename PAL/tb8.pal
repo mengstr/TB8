@@ -48,7 +48,6 @@ IRQ,	0			/ Placeholder for future IRQ handler
 
 Key,	.-.			/ Last read key
 KBufL,	.-.			/ Current length of string in KBuf
-tmpx2,	.-.			/ Generic temporary variable
 tmp,	.-.			/ Generic temporary variable
 
 *10
@@ -66,8 +65,6 @@ A,	.-.			/ Result from double precision math
 B,	.-.
 C,	.-.
 D,	.-.
-
-*30
 numH, 	.-.
 numL,	.-.
 lineH,	.-.
@@ -90,6 +87,42 @@ DWM100	7777; 7634		/ Double Word constant -100(dec)
 DWM10,	7777; 7766		/ Double Word constant -10(dec)
 DWM1,	7777; 7777		/ Double Word constant -1(dec)
 
+// Variables for SDPRINT
+SDLOOP,	-7			/COUNT OF SEVEN DIGITS
+SDTWO,	260			/BASIC CODE FOR DIGITS
+SDPLUS,	-15			/"SPACE". TO TYPE "+",REPLACE BY "-2"
+SDMNS,	-3			/"MINUS"
+SDCNT,	0			/STORAGE LOCATIONS
+SDHIGH,	0
+SDLOW,	0
+SDHSUB,	0
+SDLSUB,	0
+SDBOX,	0
+SDTEML,	0
+SDGET,	0
+SDPTR,	0
+
+// Variables for DMUL
+SIGNSW,	0
+REST,	-2
+MULTH,	0
+MULTL,	0
+MLTL,	0
+MLTH,	0
+MP3,	0
+MP5,	0
+M12,	-14
+
+// Variables for DIVIDE
+HDIVND,	0
+LDIVND,	0
+DIVSOR,	0
+SDVND,	0
+SNSWER,	0
+DIVCNT,	0
+M13,	-15                   /-13(dec)
+
+
 /]
 
 *200
@@ -108,7 +141,7 @@ DWM1,	7777; 7777		/ Double Word constant -1(dec)
 /[
         KCC     		/ Clear keyboard flag
 	JMS 	TxtOut; Greet	/ Print greeting/header
-	JMS 	List
+/	JMS 	List
 
 //   ____                                       _
 //  |  _ \   _ __    ___    _ __ ___    _ __   | |_
@@ -129,13 +162,52 @@ Prompt,	CLA			/ Clear buffers
 				/ ReadLi returns with the text in KBuf[]
 				/ and the length of text in KBufL
 
+	JMS 	TxtOut; CRLF
+
 	JMS	Tokeni		/ Tokenize the string. It's hardcoded to
 				/ use KBuf[] and KBufL as the source and
 				/ TokBuf[] as destination 
+	CLA
+	TAD 	(2000-1)	/ Point to start of tokenized data
+	DCA 	iP1
+	TAD I 	iP1		/ Is LineNo High zero?
+	SZA
+	JMP	NotDir
+	TAD I 	iP1		/ Is LineNo Low zero?
+	SZA
+	JMP 	NotDir
+	ISZ 	iP1		/ Skip the length
+	TAD I 	iP1		/ Retrieve the command
+	TAD	[40]
+	SNA 	
+	JMP	cRUN
+	IAC
+	SNA
+	JMP 	cLIST
+	IAC
+	SNA
+	JMP 	cNEW
+	JMP 	Syntax
 
-	JMS	FndLine
-
+NotDir,	/JMS	FndLine
 	JMP 	Prompt
+
+cLIST,	JMS	List
+	JMP 	Prompt
+
+cNEW,	CLA			/ Clear code memory
+	TAD 	[1000]
+	DCA 	cnt
+	TAD 	[Code-1]
+	DCA 	iP1
+	TAD 	[7777]		/ Start with the end-of-file marker
+	DCA I 	iP1		
+	JMS 	ZeroM		/ Then zero out the rest
+
+	JMP	Prompt
+
+cRUN,	JMP	0200
+
 
 /	JMS	ATOL
 /	NOP
@@ -230,21 +302,6 @@ SDOUT,    CLA
           ISZ SDCNT             /HAVE WE TYPED "7" DIGITS
           JMP SDARND            /NO, DETERMINE NEXT DIGIT
           JMP I SDPRNT          /YES, SUBROUTINE DONE. RETURN
-
-SDLOOP,	-7			/COUNT OF SEVEN DIGITS
-SDTWO,	260			/BASIC CODE FOR DIGITS
-SDPLUS,	-15			/"SPACE". TO TYPE "+",REPLACE BY "-2"
-SDMNS,	-3			/"MINUS"
-SDCNT,	0			/STORAGE LOCATIONS
-SDHIGH,	0
-SDLOW,	0
-SDHSUB,	0
-SDLSUB,	0
-SDBOX,	0
-SDTEML,	0
-SDGET,	0
-SDPTR,	0
-
 /]
 
 *400 
@@ -278,10 +335,10 @@ ATOL0,	TAD I 	src		/ Get character
 	DCA	tmp		/ save it as number 0 .. 9+
 	TAD 	tmp		/ reload
 	SPA
-	JMP  	ATOL1		/ Done
+	JMP  	ATOL		/ Done
 	TAD 	[-12]		/ Check if number is less than 10
 	SMA
-	JMP I 	ATOL1		/ Done
+	JMP I 	ATOL		/ Done
 
 	CLA			/ We found a valid digit
 	TAD 	acnt		/ So increment the used-up counter
@@ -688,13 +745,6 @@ TSIGN,	0
 	ISZ DMUL
 	JMP I TSIGN           /EXIT ROUTINE
 
-SIGNSW,	0
-REST,	-2
-MULTH,	0
-MULTL,	0
-MLTL,	0
-MLTH,	0
-
 MP4,	0                     /UNSIGNED MULTIPLY
 	DCA MiSrc
 	DCA MP5
@@ -717,10 +767,6 @@ MP4,	0                     /UNSIGNED MULTIPLY
 	RAR
 	CLL
 	JMP I MP4             /EXIT
-
-MP3,	0
-MP5,	0
-M12,	-14
 /]
 
 
@@ -805,14 +851,6 @@ DV2,	TAD LDIVND            /QUOTIENT BITS
 	CMA IAC               /YES: NEGATE
 	CLL
 	JMP I DIVIDE          /EXIT
-
-HDIVND,	0
-LDIVND,	0
-DIVSOR,	0
-SDVND,	0
-SNSWER,	0
-DIVCNT,	0
-M13,	-15                   /-13(dec)
 /]
 
 
@@ -878,12 +916,7 @@ TokenL,	/ TOKEN LOOP
 	/
 	/ Try matching the token with the command from the list
 	/
-Token1,	CLA CLL
-	TAD I 	src		/ Check if src character is NULL
-	SNA
-	JMP 	TokenD		/ We're done, the entire line is processed
-
-	CLA
+Token1,	CLA
 	TAD I 	iP1		/ Get character from command list
 	SNA			/ Check if at end of command list (NULL)
 	JMP	Token4		/   unknown command, go test is number or variable
@@ -902,9 +935,14 @@ Token1,	CLA CLL
 	JMP	Token1		/   of characters
 
 	/
-	/ No match for current entry in command list
+	/ No match for current entry in command list, but it
+	/ can also be that we reached the end of the token.
 	/
-TokenF,	CLA			/ Match fail, restore src so we can start matching
+TokenF,	CLA CLL			/ Check if src character is NULL
+	TAD I 	src		
+	SNA
+	JMP 	TokenD		/ We're done, the entire line is processed
+	CLA			/ Match fail, restore src so we can start matching
 	TAD	srcHld		/  the current token from its beginning
 	DCA	src
 Token3,	CLA			/ Skip to next entry in the command list
@@ -1072,8 +1110,11 @@ Syntax,	JMS 	TxtOut; SynErr
 /]
 
 
-//
-//
+//   _       _         _
+//  | |     (_)  ___  | |_
+//  | |     | | / __| | __|
+//  | |___  | | \__ \ | |_
+//  |_____| |_| |___/  \__|
 //
 /[
 List,0
