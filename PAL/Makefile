@@ -12,9 +12,9 @@ all: tb8.bin
 tb8.bin: tb8.pal
 	$(PAL) -a -p -n -d -x -t 8 $<
 	$(CHK) -b $@
-	$(CHK) -b -M -s $@ > tb8.map
+	$(CHK) -b -m -s $@ > tb8.map
 	$(CORE) -w tb8.bin
-	$(REPORT) < tb8.lst > tb8.rpt
+	$(REPORT) < tb8.lst | tee tb8.rpt
 
 #
 test: tb8.bin

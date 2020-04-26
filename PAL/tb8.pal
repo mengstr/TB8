@@ -49,6 +49,8 @@ IRQ,	0			/ Placeholder for future IRQ handler
 Key,	.-.			/ Last read key
 KBufL,	.-.			/ Current length of string in KBuf
 tmp,	.-.			/ Generic temporary variable
+tmpH,	.-.			/ Generic temporary variable
+tmpL,	.-.			/ Generic temporary variable
 
 *10
 PrintP,	.-.			/ Pointer to string to be printed
@@ -58,6 +60,7 @@ iP2,	.-.			/ Generic memory pointer
 
 *20
 cnt,	.-.			/ Generic counter
+cnt2,	.-.
 src,	.-.			/ Generic source address
 dst,	.-.			/ Generic destination address
 ADDRS,
@@ -69,6 +72,17 @@ numH, 	.-.
 numL,	.-.
 lineH,	.-.
 lineL,	.-.
+
+Arg48, .+1
+Arg1xH,	0
+Arg1xL,	0
+Arg1H,	0
+Arg1L,	0
+Arg2H,	0
+Arg2L,	0
+ResH,	0
+ResL,	0
+Ctype,	0
 
 DW1M,   364; 1100		/ Double Word constant 1000 000(dec)
 DW100K,	30; 3240		/ Double Word constant 100 000(dec)
@@ -123,6 +137,8 @@ DIVCNT,	0
 M13,	-15                   /-13(dec)
 
 
+SDPRNT,	SDPRNx
+
 /]
 
 *200
@@ -139,9 +155,9 @@ M13,	-15                   /-13(dec)
 //    \/     |___/  \__|  \__,_| |_|     \__|
 //
 /[
+
         KCC     		/ Clear keyboard flag
 	JMS 	TxtOut; Greet	/ Print greeting/header
-/	JMS 	List
 
 //   ____                                       _
 //  |  _ \   _ __    ___    _ __ ___    _ __   | |_
@@ -168,7 +184,7 @@ Prompt,	CLA			/ Clear buffers
 				/ use KBuf[] and KBufL as the source and
 				/ TokBuf[] as destination 
 	CLA
-	TAD 	(2000-1)	/ Point to start of tokenized data
+	TAD 	(TokBuf-1)	/ Point to start of tokenized data
 	DCA 	iP1
 	TAD I 	iP1		/ Is LineNo High zero?
 	SZA
@@ -180,22 +196,28 @@ Prompt,	CLA			/ Clear buffers
 	TAD I 	iP1		/ Retrieve the command
 	TAD	[40]
 	SNA 	
-	JMP	cRUN
+	JMP	dcRUN
 	IAC
 	SNA
-	JMP 	cLIST
+	JMP 	dcLST
 	IAC
 	SNA
-	JMP 	cNEW
+	JMP 	dcNEW
 	JMP 	Syntax
 
 NotDir,	/JMS	FndLine
 	JMP 	Prompt
 
-cLIST,	JMS	List
+//
+// Direct Command LIST
+//
+dcLST,	JMS	List
 	JMP 	Prompt
 
-cNEW,	CLA			/ Clear code memory
+//
+// Direct Command NEW
+//
+dcNEW,	CLA			/ Clear code memory
 	TAD 	[1000]
 	DCA 	cnt
 	TAD 	[Code-1]
@@ -203,106 +225,16 @@ cNEW,	CLA			/ Clear code memory
 	TAD 	[7777]		/ Start with the end-of-file marker
 	DCA I 	iP1		
 	JMS 	ZeroM		/ Then zero out the rest
-
 	JMP	Prompt
 
-cRUN,	JMP	0200
-
-
-/	JMS	ATOL
-/	NOP
-/	JMS	SDPRNT
-/	lineH
-
-/	JMS 	FndLine
-/	CLA
-/	TAD 	iDst
-/	TAD 	[-1]
-/	DCA 	iDst
-/
-/	TAD	KBufL		/ Copy length of line to code
-/	DCA I 	iDst
-/	TAD 	lineH		/ Copy line number to code
-/	DCA I 	iDst
-/	TAD 	lineL
-/	DCA I 	iDst
-/	
-/
-/	TAD 	iDst
-/	IAC
-/	DCA 	dst
-/	TAD	KBufL
-/	DCA 	cnt
-/	JMS	CpyBlk
-/
-/	JMP 	MainLo
-/]
-
-
-//   ____    ____    ____    ____    _   _   _____
-//  / ___|  |  _ \  |  _ \  |  _ \  | \ | | |_   _|
-//  \___ \  | | | | | |_) | | |_) | |  \| |   | |
-//   ___) | | |_| | |  __/  |  _ <  | |\  |   | |
-//  |____/  |____/  |_|     |_| \_\ |_| \_|   |_|
 //
-// SIGNED DECIMAL PRINT, DOUBLE PRECISION
-// CALLING SEQUENCE:  JMS SDPRNT /SUBROUTINE CALLED
-//                    HIADDR     /ADDRESS OF HIGH ORDER WORD
-//                    RETURN     /RETURN WITH AC AND L CLEAR
-/[
-SDPRNT,   0
-          CLA CLL
-          TAD I SDPRNT          /PICK UP ADDRESS OF HIGH-ORDER WORD
-          DCA SDGET
-          TAD I SDGET           /PICK UP HIGH-ORER WORD
-          SMA CLA               /IS IT NEGATIVE?
-          TAD SDPLUS            /NO, GENERATE CODE FOR SPACE
-          TAD SDMNS             /YES, GENERATE CODE FOR "MINUS"
-          JMS DigOut            /TYPE IT OUT
-          TAD I SDGET           /PICK UP HIGH-ORDER WORD AGAIN
-          SPA                   /IS IT POSITIVE?
-          CMA CML               /NO, COMPLEMENT IT. SET LINK
-          DCA SDHIGH            /STORE POSITIVE WORD FOR USE IN SUBROUTINE
-          ISZ SDGET
-          TAD I SDGET           /PICK UP LOW-ORDER WORD
-          SZL                   /IS LINK SET?
-          CMA CLL IAC           /YES, FORM TWO'S COMPLEMENT
-          SZL                   /DID AC OVERFLOW FROM "IAC"?
-          ISZ SDHIGH            /YES, CORRECT HIGH-ORDER WORD
-          DCA SDLOW             /STORE POSITIVE LOW-ORDER WORD
-          TAD SDLOOP            /INITIALIZE DIGIT COUNTER TO "7"
-          DCA SDCNT
-          TAD [DWM1M]           /INITIALIZE POINTER TO TABLE OF POWERS OF TEN
-          DCA SDPTR
-          ISZ SDPRNT            /INDEX LINKAGE FOR CORRECT RETURN
-SDARND,   TAD I SDPTR           /PICK UP POWER OF TEN FOR USE IN SUBTRACT
-          ISZ SDPTR
-          DCA SDHSUB
-          TAD I SDPTR
-          ISZ SDPTR
-          DCA SDLSUB
-SDDO,     CLL                   /DOUBLE PRECISION SUBTRACTION
-          TAD SDLSUB
-          TAD SDLOW
-          DCA SDTEML
-          RAL
-          TAD SDHSUB
-          TAD SDHIGH
-          SPA                   /DID IT UNDERFLOW?
-          JMP SDOUT             /NO, COUNT IS DONE
-          ISZ SDBOX             /YES, COUNT NOT DONE. INDEX DIGIT
-          DCA SDHIGH            /DEPOSIT REMAINING HIGH-ORDER PORTION
-          TAD SDTEML            /RESTORE REMAINING LOW-ORDER PORTION
-          DCA SDLOW
-          JMP SDDO              /GO BACK AND SUBTRACT AGAIN
-SDOUT,    CLA
-          TAD SDBOX             /PICK UP RESULTING DIGIT
-          JMS DigOut            /TYPE IT OUT
-          DCA SDBOX             /INITIALIZE DIGIT TO "0"
-          ISZ SDCNT             /HAVE WE TYPED "7" DIGITS
-          JMP SDARND            /NO, DETERMINE NEXT DIGIT
-          JMP I SDPRNT          /YES, SUBROUTINE DONE. RETURN
+// Direct Command RUN
+//
+dcRUN,	JMP	FndLin
+
 /]
+
+
 
 *400 
 //					    
@@ -506,30 +438,6 @@ BACKSP,	CLA			/ Check if buffer is not empty
 //					     | |_| | | (_) | | |_| | | |_| |
 //					      \___/   \___/   \___/   \___/
 
-//     ____          _     _  __
-//    / ___|   ___  | |_  | |/ /   ___   _   _
-//   | |  _   / _ \ | __| | ' /   / _ \ | | | |
-//   | |_| | |  __/ | |_  | . \  |  __/ | |_| |
-//    \____|  \___|  \__| |_|\_\  \___|  \__, |
-//                                       |___/
-//
-// Wait for a character to arrive from the TTY, mask off the parity, store it in 'Key'
-// and also return it in AC
-//
-// Inputs: 
-// Modifies: 	AC
-// Outputs:	Key
-//
-/[
-GetKey,	0
-	KSF     		/ Spin here until a character is available
-        JMP 	.-1	
-        KRB     		/ Read character
-	AND 	[177]		/ Only keep the 7 lowest bits
-	DCA	Key		/ Save the read character in Key
-	TAD	Key		/ Return with the character in AC as well
-	JMP I 	GetKey
-/]
 
 
 //   _____               _   _       _
@@ -540,93 +448,18 @@ GetKey,	0
 //
 /[
 FndLin,	0
-/	CLA
-/	TAD 	[Code-1]
-/	DCA	iDst
-/FndLi0,	TAD I 	iDst
-/	SNA
-	JMP I	FndLin 		/ Exit
-/	TAD 	iDst
-/	IAC
-/	IAC
-/	DCA 	iDst
-/	JMP FndLi0
+	CLA
+	TAD	[CODE]
+	DCA	src
+FndL0,	NOP
+	ISZ 	src
+	ISZ 	src
+	TAD	src
+	TAD I	src
+	DCA 	src
+	JMP	FndL0
 /]
 
-
-//   _____          _      ___            _
-//  |_   _| __  __ | |_   / _ \   _   _  | |_
-//    | |   \ \/ / | __| | | | | | | | | | __|
-//    | |    >  <  | |_  | |_| | | |_| | | |_
-//    |_|   /_/\_\  \__|  \___/   \__,_|  \__|
-//
-// Print the text pointed to by the parameter. Calls ChrOut 
-// for the actual outputting. Returns with AC and L cleared.
-//
-// Inputs: 	parameter
-// Modifies: 	AC PrintP
-// Outputs:
-//
-/[
-TxtOut,	0
-	CLA CLL
-	TAD I	TxtOut          / Get address of parameter
-	TAD	[-1]
-	DCA	PrintP
-	ISZ 	TxtOut		/ Bump up return address
-
-TxtOu,
-	CLA			/ Get character to print
-	TAD I 	PrintP		
-	SPA SNA			/ Return to caller if at end of message
-	JMP I 	TxtOut		 
-	JMS 	ChrOut		/ Call the character out for printing
-	JMP 	TxtOu		/ Now do next character
-/]
-
-//   ____    _            ___            _
-//  |  _ \  (_)   __ _   / _ \   _   _  | |_
-//  | | | | | |  / _` | | | | | | | | | | __|
-//  | |_| | | | | (_| | | |_| | | |_| | | |_
-//  |____/  |_|  \__, |  \___/   \__,_|  \__|
-//               |___/
-//
-// Outputs a number ranging between 0 and 9(dec) as a ASCII 
-// character to the TTY.  Calls ChrOut for the actual outputting.
-// Returns with AC and L cleared
-//
-// Inputs: 	AC
-// Modifies: 	AC,L
-// Outputs:
-//
-/[
-DigOut,	0
-	TAD	[60]		/ Convert number 0..9 to ASCII 0..9
-	JMS	ChrOut		/ Call the ASCII printing function
-	JMP I 	DigOut
-/]
-
-//    ____   _               ___            _
-//   / ___| | |__    _ __   / _ \   _   _  | |_
-//  | |     | '_ \  | '__| | | | | | | | | | __|
-//  | |___  | | | | | |    | |_| | | |_| | | |_
-//   \____| |_| |_| |_|     \___/   \__,_|  \__|
-//
-// Output the data in AC to the TTY and wait for the TTY
-// to become ready again. Clears AC and L before returning
-//
-// Inputs: 	AC
-// Modifies: 	AC,L
-// Outputs:
-//
-/[
-ChrOut,	0 
-	TLS		/ Send to TTY
-	TSF		/ Wait for TTY to become ready
-	JMP	.-1
-	CLA CLL		/ Clear AC and L
-	JMP I	ChrOut
-/]
 
 *1000
 //					      _    ___     ___     ___
@@ -777,82 +610,192 @@ MP4,	0                     /UNSIGNED MULTIPLY
 //					     | |  / __/  | |_| | | |_| |
 //					     |_| |_____|  \___/   \___/
 
-//   ____    ___  __     __  ___   ____    _____
-//  |  _ \  |_ _| \ \   / / |_ _| |  _ \  | ____|
-//  | | | |  | |   \ \ / /   | |  | | | | |  _|
-//  | |_| |  | |    \ V /    | |  | |_| | | |___
-//  |____/  |___|    \_/    |___| |____/  |_____|
+//     ____          _     _  __
+//    / ___|   ___  | |_  | |/ /   ___   _   _
+//   | |  _   / _ \ | __| | ' /   / _ \ | | | |
+//   | |_| | |  __/ | |_  | . \  |  __/ | |_| |
+//    \____|  \___|  \__| |_|\_\  \___|  \__, |
+//                                       |___/
 //
-// DIGITAL-8-12-F
-// SIGNED SINGLE PRECISION DIVIDE SUBROUTINE
-// CALLING SEQUENCE:
-//         C(AC) CONTAINS HIGH ORDER DIVIDEND
-//         JMS DIVIDE
-//         LOW ORDER DIVIDEND
-//         DIVISOR
-//         RETURN: C(AC)=QUOTIENT; REMAINDER IN  HDIVND
-// IF HIGH ORDER DIVIDEND IS EQUAL TO OR GREATER
-// THAN THE DIVISOR; NO DIVISION TAKES PLACE AND C(L)=1
+// Wait for a character to arrive from the TTY, mask off the parity, store it in 'Key'
+// and also return it in AC
+//
+// Inputs: 
+// Modifies: 	AC
+// Outputs:	Key
+//
 /[
-DIVIDE,	0
-	CLL
-	SPA                   /DIVIDEND<0?
-	CMA CML               /YES COMPLEMENT AND SET C(L)
-	DCA HDIVND            /HIGH ORDER DIVIDEND
-	SNL
-	CMA
-	DCA SDVND             /SET DIVIDEND SIGN SWITCH
-	TAD I DIVIDE          /FETCH LOW ORDER DIVIDEND
-	SZL
-	CMA CLL IAC           /YES: COMPLEMENT
-	DCA LDIVND            /LOW ORDER DIVIDEND
-	SZL                   /CARRY?
-	ISZ HDIVND            /YES
-	ISZ DIVIDE
-	TAD I DIVIDE          /FETCH DIVISOR
-	CLL
-	SMA
-	CMA CML IAC           /NEGATE IT
-	DCA DIVSOR            /SAVE DIVISOR
-	SNL                   /WAS IT <0?
-	CMA                   /YES: AC=-1
-	TAD SDVND
-	DCA SNSWER            /ANSWER SIGN SWITCH
-	CLL
-	TAD DIVSOR            /COMPARE DIVISOR
-	TAD HDIVND            /WITH DIVIDEND
-	ISZ DIVIDE
-	SZL CLA               /OVER FLOW?
-	JMP I DIVIDE          /YES: DIVISOR<DIVIDEND
-	TAD M13               /13 SHIFTS
-	DCA DIVCNT
-	JMP DV2
-
-/DIVIDE LOOP
-DV3,	TAD HDIVND
-	RAL
-	DCA HDIVND            /DIVIDEND LEFT SHIFT
-	TAD HDIVND
-	TAD DIVSOR            /COMPARE DIVISOR;DIVIDEND
-	SZL
-	DCA HDIVND            /REMAINDER AFTER SUBTRACT
-	CLA
-DV2,	TAD LDIVND            /QUOTIENT BITS 
-	RAL                   /ENTER HERE
-	DCA LDIVND
-	ISZ DIVCNT            /DONE 12?
-	JMP DV3               /NO: CONTINUE
-	TAD HDIVND            /REMAINDER
-	ISZ SDVND             /DIVIDEND<0?
-	CMA IAC               /YES
-	DCA HDIVND
-	TAD LDIVND            /QUOTIENT 
-	ISZ SNSWER            /ANSWER<0?
-	CMA IAC               /YES: NEGATE
-	CLL
-	JMP I DIVIDE          /EXIT
+GetKey,	0
+	KSF     		/ Spin here until a character is available
+        JMP 	.-1	
+        KRB     		/ Read character
+	AND 	[177]		/ Only keep the 7 lowest bits
+	DCA	Key		/ Save the read character in Key
+	TAD	Key		/ Return with the character in AC as well
+	JMP I 	GetKey
 /]
 
+//   ____                    ___            _
+//  / ___|   _ __     ___   / _ \   _   _  | |_
+//  \___ \  | '_ \   / __| | | | | | | | | | __|
+//   ___) | | |_) | | (__  | |_| | | |_| | | |_
+//  |____/  | .__/   \___|  \___/   \__,_|  \__|
+//          |_|
+/[
+SpcOut,	0
+	CLA
+	TAD 	[40]
+	JMS 	ChrOut
+	JMP I	SpcOut
+/]
+
+
+//   _____          _      ___            _
+//  |_   _| __  __ | |_   / _ \   _   _  | |_
+//    | |   \ \/ / | __| | | | | | | | | | __|
+//    | |    >  <  | |_  | |_| | | |_| | | |_
+//    |_|   /_/\_\  \__|  \___/   \__,_|  \__|
+//
+// Print the text pointed to by the parameter. Calls ChrOut 
+// for the actual outputting. Returns with AC and L cleared.
+//
+// Inputs: 	parameter
+// Modifies: 	AC PrintP
+// Outputs:
+//
+/[
+TxtOut,	0
+	CLA CLL
+	TAD I	TxtOut          / Get address of parameter
+	TAD	[-1]
+	DCA	PrintP
+	ISZ 	TxtOut		/ Bump up return address
+
+TxtOu,
+	CLA			/ Get character to print
+	TAD I 	PrintP		
+	SPA SNA			/ Return to caller if at end of message
+	JMP I 	TxtOut		 
+	JMS 	ChrOut		/ Call the character out for printing
+	JMP 	TxtOu		/ Now do next character
+/]
+
+//   ____    _            ___            _
+//  |  _ \  (_)   __ _   / _ \   _   _  | |_
+//  | | | | | |  / _` | | | | | | | | | | __|
+//  | |_| | | | | (_| | | |_| | | |_| | | |_
+//  |____/  |_|  \__, |  \___/   \__,_|  \__|
+//               |___/
+//
+// Outputs a number ranging between 0 and 9(dec) as a ASCII 
+// character to the TTY.  Calls ChrOut for the actual outputting.
+// Returns with AC and L cleared
+//
+// Inputs: 	AC
+// Modifies: 	AC,L
+// Outputs:
+//
+/[
+DigOut,	0
+	TAD	[60]		/ Convert number 0..9 to ASCII 0..9
+	JMS	ChrOut		/ Call the ASCII printing function
+	JMP I 	DigOut
+/]
+
+
+//    ____   _               ___            _
+//   / ___| | |__    _ __   / _ \   _   _  | |_
+//  | |     | '_ \  | '__| | | | | | | | | | __|
+//  | |___  | | | | | |    | |_| | | |_| | | |_
+//   \____| |_| |_| |_|     \___/   \__,_|  \__|
+//
+// Output the data in AC to the TTY and wait for the TTY
+// to become ready again. Clears AC and L before returning
+//
+// Inputs: 	AC
+// Modifies: 	AC,L
+// Outputs:
+//
+/[
+ChrOut,	0 
+	TLS		/ Send to TTY
+	TSF		/ Wait for TTY to become ready
+	JMP	.-1
+	CLA CLL		/ Clear AC and L
+	JMP I	ChrOut
+/]
+//   _____                        __  __
+//  |__  /   ___   _ __    ___   |  \/  |
+//    / /   / _ \ | '__|  / _ \  | |\/| |
+//   / /_  |  __/ | |    | (_) | | |  | |
+//  /____|  \___| |_|     \___/  |_|  |_|
+//
+// Input iP1	The address before the start of block to be filled
+// 	 len 	Negitive number of bytes to be filled
+//
+/[
+ZeroM,	0
+	CLA
+ZeroM0,	DCA I 	iP1
+	ISZ	cnt
+	JMP 	ZeroM0
+	JMP I 	ZeroM
+/]
+
+
+//   ____    _      _           ____
+//  / ___|  | | __ (_)  _ __   / ___|   _ __
+//  \___ \  | |/ / | | | '_ \  \___ \  | '_ \
+//   ___) | |   <  | | | |_) |  ___) | | |_) |
+//  |____/  |_|\_\ |_| | .__/  |____/  | .__/
+//                     |_|             |_|
+//
+// Advance 'src' to point to the first non-space character
+//
+// Inputs: 	src, KbufL
+// Outputs: 	src, KbufL
+//
+/[
+SkipSp,0
+	CLA
+SkipS0,	TAD I 	src
+	TAD	[-40]		/ <SPACE>
+	SZA
+	JMP I 	SkipSp
+	JMS 	IncSrc		/ src++
+	TAD	KBufL
+	TAD 	[-1]
+	DCA 	KBufL
+	JMP	SkipS0	
+/]
+
+
+//   ___                  ____
+//  |_ _|  _ __     ___  / ___|   _ __    ___
+//   | |  | '_ \   / __| \___ \  | '__|  / __|
+//   | |  | | | | | (__   ___) | | |    | (__
+//  |___| |_| |_|  \___| |____/  |_|     \___|
+//
+/[
+IncSrc,	0
+	CLA
+	TAD 	src
+	IAC
+	DCA	src
+	JMP I 	IncSrc
+/]
+
+
+//   ____                    _
+//  / ___|   _   _   _ __   | |_    __ _  __  __
+//  \___ \  | | | | | '_ \  | __|  / _` | \ \/ /
+//   ___) | | |_| | | | | | | |_  | (_| |  >  <
+//  |____/   \__, | |_| |_|  \__|  \__,_| /_/\_\
+//           |___/
+/[
+Syntax,	JMS 	TxtOut; SynErr
+	JMP 	Prompt
+/]
 
 *1400
 //					      _   _  _      ___     ___
@@ -1030,85 +973,47 @@ AppDst,	0
 	JMP I 	AppDst
 /]
 
+
+//   _   _                          _
+//  | \ | |   ___    __ _    __ _  | |_    ___
+//  |  \| |  / _ \  / _` |  / _` | | __|  / _ \
+//  | |\  | |  __/ | (_| | | (_| | | |_  |  __/
+//  |_| \_|  \___|  \__, |  \__,_|  \__|  \___|
+//                  |___/
+//
+/[
+Negate,	0
+	CLA CLL
+	TAD I	Negate          / Get address of parameter
+	DCA	tmpH
+	TAD 	tmpH
+	IAC
+	DCA	tmpL
+	ISZ	Negate		/ Bump up return address
+
+	TAD I	tmpL 
+	CMA
+	DCA I 	tmpL
+	TAD I	tmpH
+	CMA
+	DCA I 	tmpH
+
+	TAD I	tmpL 
+	TAD 	[1] 
+	DCA I 	tmpL
+	RAL
+	TAD I	tmpH
+	DCA I 	tmpH
+
+	JMP I	Negate
+/]
+
 *1600
 //					      _    __      ___     ___
 //					     / |  / /_    / _ \   / _ \
 //					     | | | '_ \  | | | | | | | |
 //					     | | | (_) | | |_| | | |_| |
 //					     |_|  \___/   \___/   \___/
-
-//   _____                        __  __
-//  |__  /   ___   _ __    ___   |  \/  |
-//    / /   / _ \ | '__|  / _ \  | |\/| |
-//   / /_  |  __/ | |    | (_) | | |  | |
-//  /____|  \___| |_|     \___/  |_|  |_|
-//
-// Input iP1	The address before the start of block to be filled
-// 	 len 	Negitive number of bytes to be filled
-//
-/[
-ZeroM,	0
-	CLA
-ZeroM0,	DCA I 	iP1
-	ISZ	cnt
-	JMP 	ZeroM0
-	JMP I 	ZeroM
-/]
-
-//   ____    _      _           ____
-//  / ___|  | | __ (_)  _ __   / ___|   _ __
-//  \___ \  | |/ / | | | '_ \  \___ \  | '_ \
-//   ___) | |   <  | | | |_) |  ___) | | |_) |
-//  |____/  |_|\_\ |_| | .__/  |____/  | .__/
-//                     |_|             |_|
-//
-// Advance 'src' to point to the first non-space character
-//
-// Inputs: 	src, KbufL
-// Outputs: 	src, KbufL
-//
-/[
-SkipSp,0
-	CLA
-SkipS0,	TAD I 	src
-	TAD	[-40]		/ <SPACE>
-	SZA
-	JMP I 	SkipSp
-	JMS 	IncSrc		/ src++
-	TAD	KBufL
-	TAD 	[-1]
-	DCA 	KBufL
-	JMP	SkipS0	
-/]
-
-
-//   ___                  ____
-//  |_ _|  _ __     ___  / ___|   _ __    ___
-//   | |  | '_ \   / __| \___ \  | '__|  / __|
-//   | |  | | | | | (__   ___) | | |    | (__
-//  |___| |_| |_|  \___| |____/  |_|     \___|
-//
-/[
-IncSrc,	0
-	CLA
-	TAD 	src
-	IAC
-	DCA	src
-	JMP I 	IncSrc
-/]
-
-
-//   ____                    _
-//  / ___|   _   _   _ __   | |_    __ _  __  __
-//  \___ \  | | | | | '_ \  | __|  / _` | \ \/ /
-//   ___) | | |_| | | | | | | |_  | (_| |  >  <
-//  |____/   \__, | |_| |_|  \__|  \__,_| /_/\_\
-//           |___/
-/[
-Syntax,	JMS 	TxtOut; SynErr
-	JMP 	Prompt
-/]
-
 
 //   _       _         _
 //  | |     (_)  ___  | |_
@@ -1129,7 +1034,7 @@ ListL0,	CLA
 	TAD I	iP1		/ Check if linenumber is negative
 	SPA			/  if so we reached end of code and
 	JMP I	List		/  will return to caller
-	JMS	SDPRNT; 0
+	JMS I	SDPRNT; 0
 	ISZ	iP1		/ Skip over the low part of line number
 	ISZ	iP1		/ Skip over the length
 
@@ -1165,9 +1070,7 @@ ListL2,	CLA
 	SZA
 	JMP	ListL2		/ Continue scanning for token
 
-	CLA
-	TAD 	[40]
-	JMS 	ChrOut
+	JMS 	SpcOut
 	TAD 	iP2
 	IAC
 	DCA	.+2
@@ -1177,27 +1080,21 @@ ListL2,	CLA
 ListCR,	JMS 	TxtOut; CRLF
 	JMP 	ListL0
 
-ListVa,	CLA			/ 
-	TAD 	[40]
-	JMS 	ChrOut
+ListVa,	JMS 	SpcOut
 	TAD I 	iP1		/ 
 	JMS 	ChrOut
 	JMP  	ListL1		/ Continue in current line
 
-ListCo,	CLA			/ 
-	TAD 	[40]
-	JMS 	ChrOut
+ListCo,	JMS 	SpcOut
 	TAD 	iP1
 	IAC
 	DCA	.+2
-	JMS	SDPRNT; 0
+	JMS I	SDPRNT; 0
 	ISZ 	iP1
 	ISZ 	iP1
 	JMP  	ListL1		/ Continue in current line
 
-ListSt, CLA
-	TAD 	[40]
-	JMS 	ChrOut
+ListSt, JMS 	SpcOut
 	TAD 	[42]
 	JMS 	ChrOut
 ListS0,	TAD I 	iP1
@@ -1214,13 +1111,156 @@ ListS1, CLA
 	JMP  	ListL1		/ Continue in current line
 /]
 
-
 *2000
 //					      ____     ___     ___     ___
 //					     |___ \   / _ \   / _ \   / _ \
 //					       __) | | | | | | | | | | | | |
 //					      / __/  | |_| | | |_| | | |_| |
 //					     |_____|  \___/   \___/   \___/
+
+//   ____    ____    ____    ____    _   _   _____
+//  / ___|  |  _ \  |  _ \  |  _ \  | \ | | |_   _|
+//  \___ \  | | | | | |_) | | |_) | |  \| |   | |
+//   ___) | | |_| | |  __/  |  _ <  | |\  |   | |
+//  |____/  |____/  |_|     |_| \_\ |_| \_|   |_|
+//
+// SIGNED DECIMAL PRINT, DOUBLE PRECISION
+// CALLING SEQUENCE:  JMS SDPRNT /SUBROUTINE CALLED
+//                    HIADDR     /ADDRESS OF HIGH ORDER WORD
+//                    RETURN     /RETURN WITH AC AND L CLEAR
+/[
+SDPRNx,   0
+          CLA CLL
+          TAD I SDPRNx          /PICK UP ADDRESS OF HIGH-ORDER WORD
+          DCA SDGET
+          TAD I SDGET           /PICK UP HIGH-ORER WORD
+          SMA CLA               /IS IT NEGATIVE?
+          TAD SDPLUS            /NO, GENERATE CODE FOR SPACE
+          TAD SDMNS             /YES, GENERATE CODE FOR "MINUS"
+          JMS DigOut            /TYPE IT OUT
+          TAD I SDGET           /PICK UP HIGH-ORDER WORD AGAIN
+          SPA                   /IS IT POSITIVE?
+          CMA CML               /NO, COMPLEMENT IT. SET LINK
+          DCA SDHIGH            /STORE POSITIVE WORD FOR USE IN SUBROUTINE
+          ISZ SDGET
+          TAD I SDGET           /PICK UP LOW-ORDER WORD
+          SZL                   /IS LINK SET?
+          CMA CLL IAC           /YES, FORM TWO'S COMPLEMENT
+          SZL                   /DID AC OVERFLOW FROM "IAC"?
+          ISZ SDHIGH            /YES, CORRECT HIGH-ORDER WORD
+          DCA SDLOW             /STORE POSITIVE LOW-ORDER WORD
+          TAD SDLOOP            /INITIALIZE DIGIT COUNTER TO "7"
+          DCA SDCNT
+          TAD [DWM1M]           /INITIALIZE POINTER TO TABLE OF POWERS OF TEN
+          DCA SDPTR
+          ISZ SDPRNx            /INDEX LINKAGE FOR CORRECT RETURN
+SDARND,   TAD I SDPTR           /PICK UP POWER OF TEN FOR USE IN SUBTRACT
+          ISZ SDPTR
+          DCA SDHSUB
+          TAD I SDPTR
+          ISZ SDPTR
+          DCA SDLSUB
+SDDO,     CLL                   /DOUBLE PRECISION SUBTRACTION
+          TAD SDLSUB
+          TAD SDLOW
+          DCA SDTEML
+          RAL
+          TAD SDHSUB
+          TAD SDHIGH
+          SPA                   /DID IT UNDERFLOW?
+          JMP SDOUT             /NO, COUNT IS DONE
+          ISZ SDBOX             /YES, COUNT NOT DONE. INDEX DIGIT
+          DCA SDHIGH            /DEPOSIT REMAINING HIGH-ORDER PORTION
+          TAD SDTEML            /RESTORE REMAINING LOW-ORDER PORTION
+          DCA SDLOW
+          JMP SDDO              /GO BACK AND SUBTRACT AGAIN
+SDOUT,    CLA
+          TAD SDBOX             /PICK UP RESULTING DIGIT
+          JMS DigOut            /TYPE IT OUT
+          DCA SDBOX             /INITIALIZE DIGIT TO "0"
+          ISZ SDCNT             /HAVE WE TYPED "7" DIGITS
+          JMP SDARND            /NO, DETERMINE NEXT DIGIT
+          JMP I SDPRNx          /YES, SUBROUTINE DONE. RETURN
+/]
+
+//   ____                        _
+//  |  _ \    __ _   _ __     __| |   ___    _ __ ___
+//  | |_) |  / _` | | '_ \   / _` |  / _ \  | '_ ` _ \
+//  |  _ <  | (_| | | | | | | (_| | | (_) | | | | | | |
+//  |_| \_\  \__,_| |_| |_|  \__,_|  \___/  |_| |_| |_|
+//
+// DECUS 5-25  RANDOM NUMBER GENERATOR
+// Returns 12 bit random number in AC and RND75
+// 
+/[
+RANDOM,	0
+	CLA
+	TAD	RND77
+	RAL
+	AND	RND71	
+	DCA	RND74	
+	TAD	RND76	
+	AND	RND70	
+	TAD	RND74	
+	RTL
+	RTL
+	RAL
+	DCA	RND72	
+	TAD	RND77	
+	AND	RND70
+	RTL
+	RTL
+	RAL
+	TAD	RND76	
+	DCA	RND73	
+	SZL
+	ISZ	RND72	
+	NOP
+	TAD	RND77
+	CLL	RAL	
+	SZL
+	ISZ	RND73
+	SKP
+	ISZ	RND72	
+	NOP
+	CLL
+	TAD	RND77	
+	DCA	RND77
+	TAD	RND76	
+	RAL
+	SZL
+	ISZ	RND72	
+	NOP
+	CLL
+	TAD	RND73	
+	DCA	RND76	
+	TAD	RND75	
+	RAL
+	TAD	RND75	
+	TAD	RND72	
+	DCA	RND75	
+	TAD	RND75	
+	JMP	I RANDOM
+
+RND70,	0177  		/ Constant
+RND71,	7400  		/ Constant
+RND72,	0000  		/ tmp
+RND73,	0000  		/ tmp
+RND74,	0000  		/ tmp
+RND75,	0000  		/ 36bit word High part
+RND76,	0000  		/ 36bit word Middle part
+RND77,	0001  		/ 36bit word Low part
+/]
+
+
+
+//					      ____     __      ___     ___
+//					     |___ \   / /_    / _ \   / _ \
+//					       __) | | '_ \  | | | | | | | |
+//					      / __/  | (_) | | |_| | | |_| |
+//					     |_____|  \___/   \___/   \___/
+
+*2600
 
 
 //            _                __    __
@@ -1304,12 +1344,12 @@ CmdTxt,
 /]
 
 
-*3000
-//					      _____    ___     ___     ___
-//					     |___ /   / _ \   / _ \   / _ \
-//					       |_ \  | | | | | | | | | | | |
-//					      ___) | | |_| | | |_| | | |_| |
-//					     |____/   \___/   \___/   \___/
+*4000
+//					      _  _      ___     ___     ___
+//					     | || |    / _ \   / _ \   / _ \
+//					     | || |_  | | | | | | | | | | | |
+//					     |__   _| | |_| | | |_| | | |_| |
+//					        |_|    \___/   \___/   \___/
 
 //
 // Data structure of the P-code
@@ -1324,216 +1364,326 @@ CODE3,	0000; 0454; 0016; 7754; 7777; 0101; 7773; 7777; 0102; 7753; 7777; 0103; 7
 CODE4,  0000; 0620; 0014; 7757; 7777; 0101; 7773; 7777; 0101; 7765; 7776; 0036; 1100; 0			/ 400 LET A = A + 123456
 CODE5,  0000; 0764; 0010;  7756; 7775; 0101; 0102; 0103; 7775; 0					/ 500 PRINT "ABC"
 	7777
+
+//      _          _       _
+//     / \      __| |   __| |
+//    / _ \    / _` |  / _` |
+//   / ___ \  | (_| | | (_| |
+//  /_/   \_\  \__,_|  \__,_|
+//
+/[
+Add,	0
+	CLA CLL 
+	TAD 	Arg1H+1
+	TAD 	Arg2H+1 
+	DCA 	ResH+1
+	RAL 
+	TAD 	Arg1H; 
+	TAD 	Arg2H; 
+	DCA 	ResH
+	JMP I 	Add
+/]
+
+
+//   ____            _
+//  / ___|   _   _  | |__
+//  \___ \  | | | | | '_ \
+//   ___) | | |_| | | |_) |
+//  |____/   \__,_| |_.__/
+//
+/[
+Sub,	0
+        CLA CLL			/ not required if previous code always leaves AC==0
+        TAD  	Arg2H+1
+        CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
+        TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
+        DCA  	ResH+1
+        RAL			/ propagate "complemented" borrow
+        TAD  	Arg2H		/ add previous stage borrow before forming negative
+        CMA CML IAC		/ form 13-bit negative
+        TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
+        DCA  	ResH
+	JMP I	Sub
+/]
+
+
+
+
+
+*6200
+//    ____
+//   / ___|   ___    _ __ ___    _ __     __ _   _ __
+//  | |      / _ \  | '_ ` _ \  | '_ \   / _` | | '__|
+//  | |___  | (_) | | | | | | | | |_) | | (_| | | |
+//   \____|  \___/  |_| |_| |_| | .__/   \__,_| |_|
+//                              |_|
+//
+// Compares two 24-bit words pointed to by the arguments
+//
+// AC should be set to one of these numbers to select the
+// type of comparison
+//
+//	-5   7773  =
+//	-6   7772  >=
+//	-7   7771  >
+//	-10  7770  <>
+//	-11  7767  <=
+//	-12  7766  <
+//
+//	If comparison is false, return with L=0
+//	If comparison is true, return with L=1
+/[
+Compar, 0
+	DCA	Ctype
+
+	TAD I	Compar          / Get address of param 1
+	DCA	tmp
+	TAD I 	tmp		/ Get high word of param1
+	DCA 	Arg1H
+	ISZ	tmp
+	TAD I 	tmp		/ Get low word of param1
+	DCA 	Arg1L
+	ISZ 	Compar		/ Bump up return address
+
+	TAD I	Compar          / Get address of param 2
+	DCA	tmp
+	TAD I 	tmp		/ Get high word of param2
+	DCA 	Arg2H
+	ISZ	tmp
+	TAD I 	tmp		/ Get low word of param2
+	DCA 	Arg2L
+	ISZ 	Compar		/ Bump up return address
+
+/SUBTRA,
+        CLA CLL			/ not required if previous code always leaves AC==0
+        TAD  	Arg2H+1
+        CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
+        TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
+        DCA  	ResH+1
+        RAL			/ propagate "complemented" borrow
+        TAD  	Arg2H		/ add previous stage borrow before forming negative
+        CMA CML IAC		/ form 13-bit negative
+        TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
+        DCA  	ResH
+
+	CLA			/ After this ResH+1 is zero if both ResH
+	TAD 	ResH		/ and ResH+1 was zero. And ResH can be tested
+	CMA			/ for negative 
+	DCA	tmp
+	TAD 	ResH+1
+	CMA
+	AND 	tmp
+	CMA
+	DCA	ResH+1
+
+	TAD	CTYPE		/ Calculate inexed jump based on CTYPE
+	TAD 	[CompIx+12]
+	DCA	tmp
+	TAD I 	tmp
+	DCA	tmp
+	JMP I 	tmp
+CompIx,	CompLT			/  <   LESS THAN
+	CompLE			/  <=  LESS THAN OR EQUAL
+	CompNE			/  <>  NOT EQUAL
+	CompGT			/  >   GREATER THAN
+	CompGE			/  >=  GREATER THAN OR EQUAL
+	CompEQ			/  =   EQUAL
+
+CompEQ,	CLA
+	TAD 	ResH+1
+	SNA			/ Skip if not equal
+	JMP 	CompaT
+	JMP 	CompaF
+
+CompGE,	CLA
+	TAD 	ResH+1
+	SNA			/ Skip if not equal
+	JMP 	CompaT
+
+CompGT,	/ Begin by testing if Arg1 is negative and Arg2 is positive
+	/ if it is so then Arg1 can't be larger than Arg2 so we fail
+	CLA
+	TAD 	Arg1H
+	SMA 			/ Skip if minus acc
+	JMP 	CompL1
+	CLA
+	TAD	Arg2H
+	SMA 			/ Skip if minus acc
+	JMP 	CompaF
+
+CompL1,	/  Then testing if Arg1 is positive and Arg2 is negative
+	/ if it is so then Arg1 must be larger than Arg2 so we succeed
+	CLA
+	TAD 	Arg1H
+	SPA 			/ Skip if positive acc
+	JMP 	CompL2
+	CLA
+	TAD	Arg2H
+	SPA 			/ Skip if positive acc
+	JMP 	CompaT
+
+CompL2,	/ Fall back on regular subtraction testing since we ruled out
+	/ the cases where an overflow can cause incorrect
+	CLA
+	TAD 	ResH
+	SPA 			/ Skip if minus
+	JMP 	CompaF
+	CLA
+	TAD	ResH+1
+	SZA
+	JMP 	CompaT
+	JMP 	CompaF
+
+
+CompNE,	CLA
+	TAD 	ResH+1
+	SZA
+	JMP 	CompaT
+	JMP 	CompaF
+
+CompLE,	CLA
+	TAD 	ResH+1
+	SNA			/ Skip if not equal
+	JMP 	CompaT
+
+
+CompLT,	/ Begin by testing if Arg1 is positive and Arg2 is negative
+	/ if it is so then Arg1 can't be smaller than Arg2 so we fail
+	CLA
+	TAD 	Arg1H
+	SPA 	 		/ Skip if plus acc
+	JMP 	CompL3
+	CLA
+	TAD	Arg2H
+	SPA 	 		/ Skip if plus acc
+	JMP 	CompaF
+
+CompL3,	/  Then testing if Arg1 is negative and Arg2 is positive
+	/ if it is so then Arg1 must be smaller than Arg2 so we succeed
+	CLA
+	TAD 	Arg1H
+	SMA			/ Skip if negative acc
+	JMP 	CompL4
+	CLA
+	TAD	Arg2H
+	SMA 			/ Skip if negtive acc
+	JMP 	CompaT
+
+CompL4,	/ Fall back on regular subtraction testing since we ruled out
+	/ the cases where an overflow can cause incorrect
+	CLA
+	TAD 	ResH
+	SPA 			/ Skip if plus
+	JMP 	CompaT
+	JMP 	CompaF
+
+CompaF,	CLL			/ Comparison false, return with L=0
+	JMP I 	Compar
+
+CompaT,	CLL CML			/ Comparison true, return with L=1
+	JMP I 	Compar
+
+
+/]
+
+
+
+
+*5000
+
+//   ____    ___  __     __  ___   ____    _____
+//  |  _ \  |_ _| \ \   / / |_ _| |  _ \  | ____|
+//  | | | |  | |   \ \ / /   | |  | | | | |  _|
+//  | |_| |  | |    \ V /    | |  | |_| | | |___
+//  |____/  |___|    \_/    |___| |____/  |_____|
+//
+// BASED ON DEC-08-FMEA-LA 
+// DOUBLE PRECISION DIVIDE SUBROUTINE,
+// Stipped down from 48 bit Dividend to 24 bit
+//
+// CALLING SEQUENCE:
+//         JMS DIVIDE
+//	    ADDRESS OF HIGH ORDER DIVIDEND
+//          ADDRESS OF HIGH ORDER DIVISOR
+//
+//         RETURN: DIVND3/AC = HIGH ORDER QUOTIENT
+//                 DIVND4 = LOW ORDER QUOTIENT
+//                 DIVND1 = HIGH ORDER REMAINDER
+//                 DIVND2 = LOW ORDER REMAINDER
+//
+// IF DIVISOR<DIVIDEND; RESULTS UNSPECIFIED
+//
+/[
+
+DIVIDE,   0
+	CLA
+	DCA DIVND1
+	DCA DIVND2
+
+	TAD I DIVIDE		/ Get Dividend address from parameters
+	DCA ADDRS
+	ISZ DIVIDE		/ Adjust return address
+
+	TAD I ADDRS		/ Dividend High
+	DCA DIVND3
+	ISZ ADDRS
+	TAD I ADDRS		/ Dividend Low
+	DCA DIVND4
+
+	TAD I DIVIDE		/ Get Divisor address from parameters
+	DCA ADDRS
+	ISZ DIVIDE		/ Adjust return address
+
+	TAD I ADDRS		/ Divisor High
+	DCA HDIVSR
+	ISZ ADDRS
+	TAD I ADDRS		/ Divisor Low
+	DCA LDIVSR
+	
+	TAD M25			/ SETUP FOR 24 LOOPS
+	DCA DIVCNT		/ SET DIVIDE COUNT=24
+	CLL
+	JMP DIV2
+
+DIV3,	TAD	DIVND2		/ SHIFT HIGH DIVIDEND
+	RAL			/ LEFT
+	DCA	DIVND2
+	TAD	DIVND1
+	RAL
+	DCA	DIVND1
+	TAD	DIVND2		/ COMPARE DIVISOR;
+	TAD	LDIVSR		/ WITH DIVISOR
+	DCA	ADDRS
+	RAL			/ GET CARRY
+	TAD	DIVND1
+	TAD	HDIVSR
+	SNL
+	JMP	DIV2-1
+	DCA	DIVND1
+	TAD	ADDRS
+	DCA	DIVND2
+	CLA
+DIV2,	TAD	DIVND4		/ ROTATE LOW ORDER
+	RAL			/ WORDS LEFT
+	DCA	DIVND4
+	TAD	DIVND3		/Q UTOIENT BITS
+	RAL
+	DCA	DIVND3		/ ENTER FROM C(L)
+	ISZ	DIVCNT		/ DONE 24?
+	JMP	DIV3		/ NO: CONTINUE
+	JMP I	DIVIDE		/ We're done, exit subroutine
+
+DIVND1,   0
+DIVND2,   0
+DIVND3,   0
+DIVND4,   0
+HDIVSR,   0
+LDIVSR,   0
+M25,      -31                   /-25(10)
+
+/]
+
+
+
 $
-
-/     The octal set:
-/
-/     000 nul  001 soh  002 stx  003 etx  004 eot  005 enq  006 ack  007 bel
-/     010 bs   011 ht   012 nl   013 vt   014 np   015 cr   016 so   017 si
-/     020 dle  021 dc1  022 dc2  023 dc3  024 dc4  025 nak  026 syn  027 etb
-/     030 can  031 em   032 sub  033 esc  034 fs   035 gs   036 rs   037 us
-/     040 sp   041  !   042  "   043  #   044  $   045  %   046  &   047  '
-/     050  (   051  )   052  *   053  +   054  ,   055  -   056  .   057  /
-/     060  0   061  1   062  2   063  3   064  4   065  5   066  6   067  7
-/     070  8   071  9   072  :   073  ;   074  <   075  =   076  >   077  ?
-/     100  @   101  A   102  B   103  C   104  D   105  E   106  F   107  G
-/     110  H   111  I   112  J   113  K   114  L   115  M   116  N   117  O
-/     120  P   121  Q   122  R   123  S   124  T   125  U   126  V   127  W
-/     130  X   131  Y   132  Z   133  [   134  \   135  ]   136  ^   137  _
-/     140  `   141  a   142  b   143  c   144  d   145  e   146  f   147  g
-/     150  h   151  i   152  j   153  k   154  l   155  m   156  n   157  o
-/     160  p   161  q   162  r   163  s   164  t   165  u   166  v   167  w
-/     170  x   171  y   172  z   173  {   174  |   175  }   176  ~   177 del
-/
-/
-/
-/
-/ Block copying
-/
-/	1 - From keybuf to code  - Can copy in any direction
-/  		ABCDEFGH              abcdefghijklmnopqrstuvwxyz
-/  		ABCDEFGH              abcdefghijklmnopqrstuvwxyzABCDEFGH
-/
-/	2 - Make new space inside code - Must copy backwards
-/  		ABCDEFGH              abcdefghijklmnopqrstuvwxyzABCDEFGH
-/  		ABCDEFGH              abcdefghi-----jklmnopqrstuvwxyzABCDEFGH
-/
-/	3 - Delete a block inside code - Can copy in any direction
-/  		ABCDEFGH              abcdefghi-----jklmnopqrstuvwxyzABCDEFGH
-/  		ABCDEFGH              abfghi-----jklmnopqrstuvwxyzABCDEFGH
-/
-/
-/ DEFINE DBLADD A B
-/ <CLA CLL; TAD A+1; TAD B+1; DCA A+1; RAL; TAD A; TAD B; DCA A>
-/
-/ DEFINE DSHFT C D
-/ <CLA CLL; TAD C; RAL; DCA C; TAD D; RAL; DCA D>
-/
-/ DEFINE DMOVE E F
-/ <CLA; TAD E; DCA F; TAD E+1; DCA F+1>
-/
-/ DEFINE DBLSUB G H TE
-/ <CLA CLL; TAD H; CMA; DCA TE; TAD H+1; CIA CLL; SZL; ISZ TE; NOP CLL; TAD G+1; DCA G+1; RAL; TAD G; TAD TE; DCA G>
-
-/
-/
-/
-/ BCD functions from DECUS http://dustyoldcomputers.com/pdp-common/reference/papertapes/decus/decus-8-100.pal
-/ http://so-much-stuff.com/pdp8/tapes/digital.html
-/
-/ figlet -W -f standard '* variables' | sed 's/^/\/\/ /g'
-/
-/ A 24 bit signed integet is +/- 8 388 607
-/
-/	SMA 	Skip if Minus Accumulator
-/	SZA 	Skip if Zero Accumulator
-/	SNL 	Skip if Nonzero Link
-/	SPA 	Skip if Positive Accumulator
-/	SNA 	Skip if Nonzero Accumulator
-/	SZL 	Skip if Zero Link
-/       SMA SZA	Skip if Less than or Equal to Zero
-/	SPA SNA Skip if Greater than Zero
-
-//					    
-//					    
-//					      ____    ____     ___     ___
-//					     |___ \  |___ \   / _ \   / _ \
-//					       __) |   __) | | | | | | | | |
-//					      / __/   / __/  | |_| | | |_| |
-//					     |_____| |_____|  \___/   \___/
-//					    
-//					      ____    _  _      ___     ___
-//					     |___ \  | || |    / _ \   / _ \
-//					       __) | | || |_  | | | | | | | |
-//					      / __/  |__   _| | |_| | | |_| |
-//					     |_____|    |_|    \___/   \___/
-//					    
-//					      ____     __      ___     ___
-//					     |___ \   / /_    / _ \   / _ \
-//					       __) | | '_ \  | | | | | | | |
-//					      / __/  | (_) | | |_| | | |_| |
-//					     |_____|  \___/   \___/   \___/
-//					    
-//					    
-//					    
-//					      _____   ____     ___     ___
-//					     |___ /  |___ \   / _ \   / _ \
-//					       |_ \    __) | | | | | | | | |
-//					      ___) |  / __/  | |_| | | |_| |
-//					     |____/  |_____|  \___/   \___/
-//					    
-//					    
-//					      _____   _  _      ___     ___
-//					     |___ /  | || |    / _ \   / _ \
-//					       |_ \  | || |_  | | | | | | | |
-//					      ___) | |__   _| | |_| | | |_| |
-//					     |____/     |_|    \___/   \___/
-//					    
-//					      _____    __      ___     ___
-//					     |___ /   / /_    / _ \   / _ \
-//					       |_ \  | '_ \  | | | | | | | |
-//					      ___) | | (_) | | |_| | | |_| |
-//					     |____/   \___/   \___/   \___/
-//					    
-//					      _  _      ___     ___     ___
-//					     | || |    / _ \   / _ \   / _ \
-//					     | || |_  | | | | | | | | | | | |
-//					     |__   _| | |_| | | |_| | | |_| |
-//					        |_|    \___/   \___/   \___/
-//					    
-//					      _  _     ____     ___     ___
-//					     | || |   |___ \   / _ \   / _ \
-//					     | || |_    __) | | | | | | | | |
-//					     |__   _|  / __/  | |_| | | |_| |
-//					        |_|   |_____|  \___/   \___/
-//					    
-//					      _  _     _  _      ___     ___
-//					     | || |   | || |    / _ \   / _ \
-//					     | || |_  | || |_  | | | | | | | |
-//					     |__   _| |__   _| | |_| | | |_| |
-//					        |_|      |_|    \___/   \___/
-//					    
-//					      _  _      __      ___     ___
-//					     | || |    / /_    / _ \   / _ \
-//					     | || |_  | '_ \  | | | | | | | |
-//					     |__   _| | (_) | | |_| | | |_| |
-//					        |_|    \___/   \___/   \___/
-//					    
-//					    
-//					      ____     ___     ___     ___
-//					     | ___|   / _ \   / _ \   / _ \
-//					     |___ \  | | | | | | | | | | | |
-//					      ___) | | |_| | | |_| | | |_| |
-//					     |____/   \___/   \___/   \___/
-//					    
-//					      ____    ____     ___     ___
-//					     | ___|  |___ \   / _ \   / _ \
-//					     |___ \    __) | | | | | | | | |
-//					      ___) |  / __/  | |_| | | |_| |
-//					     |____/  |_____|  \___/   \___/
-//					    
-//					      ____    _  _      ___     ___
-//					     | ___|  | || |    / _ \   / _ \
-//					     |___ \  | || |_  | | | | | | | |
-//					      ___) | |__   _| | |_| | | |_| |
-//					     |____/     |_|    \___/   \___/
-//					    
-//					      ____     __      ___     ___
-//					     | ___|   / /_    / _ \   / _ \
-//					     |___ \  | '_ \  | | | | | | | |
-//					      ___) | | (_) | | |_| | | |_| |
-//					     |____/   \___/   \___/   \___/
-//					    
-//					       __      ___     ___     ___
-//					      / /_    / _ \   / _ \   / _ \
-//					     | '_ \  | | | | | | | | | | | |
-//					     | (_) | | |_| | | |_| | | |_| |
-//					      \___/   \___/   \___/   \___/
-//					    
-//					       __     ____     ___     ___
-//					      / /_   |___ \   / _ \   / _ \
-//					     | '_ \    __) | | | | | | | | |
-//					     | (_) |  / __/  | |_| | | |_| |
-//					      \___/  |_____|  \___/   \___/
-//					    
-//					       __     _  _      ___     ___
-//					      / /_   | || |    / _ \   / _ \
-//					     | '_ \  | || |_  | | | | | | | |
-//					     | (_) | |__   _| | |_| | | |_| |
-//					      \___/     |_|    \___/   \___/
-//					    
-//					       __      __      ___     ___
-//					      / /_    / /_    / _ \   / _ \
-//					     | '_ \  | '_ \  | | | | | | | |
-//					     | (_) | | (_) | | |_| | | |_| |
-//					      \___/   \___/   \___/   \___/
-//					    /					    
-//					      _____    ___     ___     ___
-//					     |___  |  / _ \   / _ \   / _ \
-//					        / /  | | | | | | | | | | | |
-//					       / /   | |_| | | |_| | | |_| |
-//					      /_/     \___/   \___/   \___/
-//					    
-//					      _____   ____     ___     ___
-//					     |___  | |___ \   / _ \   / _ \
-//					        / /    __) | | | | | | | | |
-//					       / /    / __/  | |_| | | |_| |
-//					      /_/    |_____|  \___/   \___/
-//					    
-//					      _____   _  _      ___     ___
-//					     |___  | | || |    / _ \   / _ \
-//					        / /  | || |_  | | | | | | | |
-//					       / /   |__   _| | |_| | | |_| |
-//					      /_/       |_|    \___/   \___/
-//					    
-//					      _____    __      ___     ___
-//					     |___  |  / /_    / _ \   / _ \
-//					        / /  | '_ \  | | | | | | | |
-//					       / /   | (_) | | |_| | | |_| |
-//					      /_/     \___/   \___/   \___/
-//					    
-/
-/https://user-images.githubusercontent.com/325326/65816829-ed435100-e200-11e9-9440-e0df4f8777a1.png
-/https://user-images.githubusercontent.com/325326/65816830-ed435100-e200-11e9-8f48-ff7796cf4fc1.png
-/
 
