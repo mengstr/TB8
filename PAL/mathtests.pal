@@ -1,0 +1,122 @@
+
+//
+// Outputs 1 million lines with math tests using random numbers 
+//
+//  Num1     Num2     Num1+Num2 Num1-Num2 Num1*Num2  Num1/Num2
+//------------------------------------------------------------
+//  0001024 -0002048  -0001024   0003072  -2097152   0000000
+// -4146137 -0033229  -4179366  -4112908  -2511419   0000124
+//  8202463 -0091435   8111028   8293898  -0317557  -0000089
+// -1770338  0156630  -1613708  -1926968   5785108  -0000011
+//  7295365  0261456   7556821   7033909  -1512816   0000027
+//  4704884 -0113682   4591202   4818566  -2976808  -0000041
+// -5731732 -0015553  -5747285  -5716179   8279188   0000368
+// -7143653 -0240617  -7384270  -6903036   8243053   0000029
+// -1220622 -0174453  -1395075  -1046169   4744294   0000006
+// -1582203  0208004  -1374199  -1790207  -2683756  -0000007
+// -3984398 -0111519  -4095917  -3872879   8292018   0000035
+//  1552318  0159032   1711350   1393286   8279952   0000009
+//  2943023  0078158   3021181   2864865   5160274   0000037
+//  0668467  0227328   0895795   0441139  -6756352   0000002
+// -3243001 -0016337  -3259338  -3226664  -1540791   0000198
+//  6730067 -0204084   6525983   6934151   1348644  -0000032
+//  2254189  0215650   2469839   2038539  -3975750   0000010
+//  3521771 -0072609   3449162   3594380   6055733  -0000048
+
+*6000
+
+/[
+Tests,	CLA 
+	TAD 	(-1750)		/ Loop 1000*1000 times
+	DCA 	cntmt1
+MtesL1,
+	TAD 	(-1750)
+	DCA 	cntmt2
+MtesL2,	
+	//--------------------------------------------------
+	// INITIALIZE RANDOM NUMBERS
+	JMS	RANDOM;	DCA Num1
+	JMS	RANDOM;	DCA Num1+1
+	JMS	RANDOM;	AND [77]; DCA Num2
+	JMS	RANDOM;	DCA Num2+1
+	JMS 	RANDOM; 
+	SMA 
+	JMP 	Mtes0
+	JMS 	Negate; Num2
+	// PRINT RANDOM NUMBERS
+Mtes0,	JMS I	SDPRNT; Num1;
+	JMS 	SpcOut
+	JMS I	SDPRNT; Num2;
+	//------------------------------------------------
+	// ADDITION
+	JMS	TestsC
+	JMS	Add
+	JMS I	SDPRNT; ResH;
+
+	//------------------------------------------------
+	// SUBTRACTION
+	JMS	TestsC
+	JMS	Sub
+	JMS I	SDPRNT; ResH;
+
+	//------------------------------------------------
+	// MULTIPLICATION
+	JMS	TestsC
+	JMS	DMUL; Arg1H; Arg2H
+	CLA; TAD C; DCA ResH; TAD D; DCA ResH+1
+	JMS I	SDPRNT; ResH;
+
+	//------------------------------------------------
+	// DIVISION
+	JMS	TestsC
+
+	CLA; DCA negg
+	CLA; TAD Arg1H	/ Check if negative dividend
+	SMA
+	JMP 	Mtes1
+	JMS 	Negate; Arg1H	/ Always positive
+	ISZ 	negg
+
+Mtes1,	CLA;TAD Arg2H	/ Check if positive divisor
+	SPA
+	JMP 	Mtes2
+	JMS 	Negate; Arg2H	/ Always negative
+	CLA; TAD negg; TAD [-1]; DCA negg
+
+Mtes2,	JMS	DIVIDE; Arg1H; Arg2H
+	SZL			/ L is 1 is error
+	JMP 	Mtes4		
+	CLA; TAD DIVND4; DCA 	ResH+1
+	CLA; TAD DIVND3; DCA 	ResH
+	CLA; TAD negg
+	SZA
+	JMP 	Mtes3
+	JMS Negate; ResH
+
+Mtes3,	JMS I	SDPRNT; ResH;
+
+	//----------------------------------------------
+Mtes4,	JMS TxtOut; CRLF
+
+	ISZ	cntmt2
+	JMP 	MtesL2
+	ISZ	cntmt1
+	JMP 	MtesL1
+	HLT
+
+Num1,	0;0
+Num2,	0;0
+negg,	0
+cntmt1,	0
+cntmt2,	0
+
+TestsC,	0
+	CLA
+	TAD NUM1; DCA Arg1H
+	TAD NUM1+1; DCA Arg1H+1
+	TAD NUM2; DCA Arg2H
+	TAD NUM2+1; DCA Arg2H+1
+	JMS 	SpcOut
+	JMP I 	TestsC
+
+/]
