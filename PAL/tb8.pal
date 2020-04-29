@@ -138,7 +138,6 @@ DWM100	7777; 7634		/ Double Word constant -100(dec)
 DWM10,	7777; 7766		/ Double Word constant -10(dec)
 DWM1,	7777; 7777		/ Double Word constant -1(dec)
 
-
 OutInt,	OutInX
 Prompt, PrompX
 /]
@@ -158,7 +157,7 @@ Prompt, PrompX
 //
 /[
 
-        KCC     		/ Clear keyboard flag
+	KCC     		/ Clear keyboard flag
 	JMS 	TxtOut; Greet	/ Print greeting/header
 
 //   ____                                       _
@@ -201,22 +200,24 @@ PrompX,	CLA			/ Clear buffers
 	SZA
 	JMP 	NotDir
 	/
-	/ No line number given, so this is a driect command.
-	/ Currently onlu RUN, LIST and NEW is accepted as
+	/ No line number given, so this is a direct command.
+	/ Currently only RUN, LIST, NEW and FREE are accepted as
 	/ direct commands
 	/
 	ISZ 	iP1		/ Skip the length
 	TAD I 	iP1		/ Retrieve the command
-	TAD	[40]
-	SNA 	
-	JMP	dcRUN
-	IAC
-	SNA
-	JMP 	dcLST
-	IAC
-	SNA
-	JMP 	dcNEW
-	JMP 	Syntax
+
+	TAD	[tkOFS1+JMPTB1]
+	DCA 	JMPVE1
+	TAD I	JMPVE1
+	DCA 	JMPVE1
+	JMP I	JMPVE1
+JMPVE1,	NOP
+JMPTB1,	dcFREE		/ tkFREE = -50
+	dcNEW		/ tkNEW  = -47
+	dcLIST		/ tkLIST = -46
+	dcRUN		/ tkRUN  = -45
+
 
 	/
 	/ First search for the line in the code base and remove it if it's there
@@ -250,28 +251,111 @@ NotDir,	JMS	FndLine		/ Locate line, return pointer in src
 	DCA	src
 	JMS	CodCpy
 	JMP I	Prompt
+/]
 
+
+//       _          _____   ____    _____   _____
+//    __| |   ___  |  ___| |  _ \  | ____| | ____|
+//   / _` |  / __| | |_    | |_) | |  _|   |  _|
+//  | (_| | | (__  |  _|   |  _ <  | |___  | |___
+//   \__,_|  \___| |_|     |_| \_\ |_____| |_____|
+//
 //
 // Direct Command LIST
 //
-dcLST,	JMS	List
+/[
+dcFREE,	
+dcLIST,	JMS	List
 	JMP I	Prompt
+/]
 
+
+//       _          _   _   _____  __        __
+//    __| |   ___  | \ | | | ____| \ \      / /
+//   / _` |  / __| |  \| | |  _|    \ \ /\ / /
+//  | (_| | | (__  | |\  | | |___    \ V  V /
+//   \__,_|  \___| |_| \_| |_____|    \_/\_/
+//
 //
 // Direct Command NEW
 //
+/[
 dcNEW,	NL7777			/ Set first byte of code buffer to
-	DCA I	[Code]		/ end-of-code marker 7777
+	DCA I	(Code)		/ end-of-code marker 7777
 	JMP I	Prompt
+/]
 
+//       _          ____    _   _   _   _
+//    __| |   ___  |  _ \  | | | | | \ | |
+//   / _` |  / __| | |_) | | | | | |  \| |
+//  | (_| | | (__  |  _ <  | |_| | | |\  |
+//   \__,_|  \___| |_| \_\  \___/  |_| \_|
+//
 //
 // Direct Command RUN
 //
+/[
 dcRUN,	
-	JMP I	Prompt
+	TAD	(Code)
+	DCA 	src
 
+Runnin,	ISZ	src	/ Skip lineno and length
+	ISZ 	src
+	ISZ 	src
+
+	TAD I 	src
+	TAD	(tkOFS2+JMPTB2)
+	DCA 	JMPVE2
+	TAD I	JMPVE2
+	DCA 	JMPVE2
+	JMP I	JMPVE2
+JMPVE2,	NOP
+JMPTB2,
+	cEND		/ tkEND=	-35
+	cRETURN		/ tkRETU=	-34
+	cGOSUB		/ tkGOSU=	-33
+	cGOTO 		/ tkGOTO=	-32
+	cNEXT		/ tkNEXT=	-31
+	cFOR		/ tkFOR=	-30
+	cIFF 		/ tkIF=		-27
+	cPRINT		/ tkPRIQ=	-26
+	cPRINT		/ tkPRIN=	-25
+	cGET		/ tkGET=	-24
+	cINPUT 		/ tkINPU=	-23
+	cLET		/ tkLET=	-22
+	cCOLON		/ tkCOLO=	-21
+	cREM		/ tkREM=	-20
 /]
 
+
+/
+/
+/
+cRETURN,
+cGOSUB,
+cGOTO,
+cNEXT,
+cFOR,
+cIFF,
+cGET,
+cINPUT, 
+cLET,
+cCOLON,
+cREM,	JMP I	Prompt
+
+
+//          _____   _   _   ____
+//    ___  | ____| | \ | | |  _ \
+//   / __| |  _|   |  \| | | | | |
+//  | (__  | |___  | |\  | | |_| |
+//   \___| |_____| |_| \_| |____/
+//
+// Stop the running of the program by simply go back to the prompt
+// again.
+//
+/[
+cEND,	JMP I 	Prompt	
+/]
 
 
 *400 
@@ -281,6 +365,87 @@ dcRUN,
 //					     | | | | | || |_  | | | | | | | |
 //					     | |_| | |__   _| | |_| | | |_| |
 //					      \___/     |_|    \___/   \___/
+
+
+//          ____    ____    ___   _   _   _____
+//    ___  |  _ \  |  _ \  |_ _| | \ | | |_   _|
+//   / __| | |_) | | |_) |  | |  |  \| |   | |
+//  | (__  |  __/  |  _ <   | |  | |\  |   | |
+//   \___| |_|     |_| \_\ |___| |_| \_|   |_|
+//
+//
+// tkVAR=  -1;	1		; tkVAR		/   Variable
+// tkCONS= -2;	2		; tkCONS	/   Constant
+// tkSTRI= -3;	42		; tkSTRI	/ " String start/end
+//
+// PRINT returns after NIL or tkCOLO
+// PRINT outputs a CRLF before returning if the last token wasn't tkSEMI
+// PRINT outputs a SPACE at tkCOMM
+/[
+cPRINT,
+	ISZ	src
+	TAD I 	src
+	SNA
+	JMP 	cPrEnd
+	TAD 	(tkCOLO)
+	SNA
+	JMP 	cPrEnd
+	TAD 	(-tkCOLO)
+	TAD 	(1)
+	SNA 	
+	JMP 	cPRINv
+	TAD 	(1)
+	SNA 	
+	JMP 	cPRINc
+
+	/
+	/ Print string
+	/
+cPRINs,	ISZ 	src		/ This will skip the leading "
+	CLA			/ Get character to print
+	TAD I 	src
+	TAD 	[-tkSTRI]
+	SNA			/ at end of message
+	JMP 	cPRINT		/  yes, maybe do more printing?
+	TAD	[tkSTRI]
+	JMS 	ChrOut		/ Call the character out for printing
+	JMP 	cPRINs		/ Now do next character
+
+	/
+	/ Print variable
+	/
+cPRINv,	ISZ 	src
+	CLA CLL
+	TAD I 	src
+	TAD 	(-101)
+	RAL
+	TAD 	(AZvars)
+	DCA	.+2
+	JMS I	OutInt; 0	
+	JMP 	cPRINT		/ Maybe do more printing?
+
+	/
+	/ Print constant
+	/
+cPRINc,
+	ISZ 	src
+	CLA
+	TAD 	src
+	DCA 	.+2
+	JMS I	OutInt; 0	
+	ISZ 	src		/ skip the bytes of the constant
+	JMP 	cPRINT		/ Maybe do more printing?
+
+	/
+	/ Print final CRLF (if not supressed) and go back to parse more tokens
+	/
+cPrEnd,	JMS 	TxtOut; CRLF
+	ISZ 	src		/ skip the NIL or COLON
+	JMP 	Running
+
+/]
+
+
 
 //    ____               _   ____           _
 //   / ___|   ___     __| | |  _ \    ___  | |
@@ -424,7 +589,7 @@ FndLi0,	CLA
 	TAD I 	tmp
 	DCA	tmpL
 
-	TAD 	[-6]			/ GREATER THAN OR EQUAL op for Compar
+	TAD 	[tkGTEQ]		/ GREATER THAN OR EQUAL op for Compar
 	JMS 	Compar; TmpH; NumH
 	SZL 				/ Skip if no match
 	JMP 	FndLiM
@@ -545,14 +710,32 @@ Token1,	CLA
 	SPA			/ If command char is negative we have matched
 	JMP 	TokenM		/   a full command.
 
-	CMA			/ Now compare command char with token char
+	DCA	tmp		/ Before comparing the command char with the keybuf
+				/ char, we need to uppercase and parity-fix the
+				/ keybuf char. So stash the command char while
+				/ doing that.
+	TAD I 	src		/ Get keybuf char
+	AND 	(0177)		/ Mask parity 000 001 111 111
+	TAD 	(-141)		/ Bias it with negaitive ASCII a
+	SMA
+	TAD 	(-40)		/ Make it upper case
+	TAD 	[341]		/ Restore bias + set parity
+
+	CMA			/ Now compare command char with keybuf char
 	IAC
-	TAD I 	src		
+	TAD 	tmp
 	SZA			
 	JMP	TokenF		/ No match of chars, go skip chars until the
+
+
+/	CMA			/ Now compare command char with keybuf char
+/	IAC
+/	TAD I 	src		
+/	SZA			
+/	JMP	TokenF		/ No match of chars, go skip chars until the
 				/   next command
 
-	JMS 	IncSrc		/ Match, src++. go try the next pair 
+	ISZ	src		/ Match, src++. go try the next pair 
 	JMP	Token1		/   of characters
 
 	/
@@ -589,7 +772,7 @@ Token4,	CLA CLL
 	JMS 	AppDst
 	TAD I 	SRC		/ Store variable name as is
 	JMS 	AppDst
-	JMS 	IncSrc		/ src++, Advance to next character
+	ISZ	src		/ src++, Advance to next character
 	JMP 	TokenL		/ Continue scanning for more tokens
 
 	/
@@ -634,6 +817,70 @@ TokenD,	/ TOKEN DONE
 srcHld,	0	
 /]
 
+//
+//      _                      ____          _
+//     / \     _ __    _ __   |  _ \   ___  | |_
+//    / _ \   | '_ \  | '_ \  | | | | / __| | __|
+//   / ___ \  | |_) | | |_) | | |_| | \__ \ | |_
+//  /_/   \_\ | .__/  | .__/  |____/  |___/  \__|
+//            |_|     |_|
+//
+// Store AC at the end of the dst array, increment the dst pointer
+// Returns with AC zero
+//
+/[
+AppDst,	0
+	DCA I 	dst		/ Store it in the destination array
+	ISZ	dst		/ Increment dst pointer
+	ISZ 	TokBuf+2	/ Increment length of destination
+	JMP I 	AppDst
+/]
+
+
+//   ____    _      _           ____
+//  / ___|  | | __ (_)  _ __   / ___|   _ __
+//  \___ \  | |/ / | | | '_ \  \___ \  | '_ \
+//   ___) | |   <  | | | |_) |  ___) | | |_) |
+//  |____/  |_|\_\ |_| | .__/  |____/  | .__/
+//                     |_|             |_|
+//
+// Advance 'src' to point to the first non-space character
+//
+// Inputs: 	src, KbufL
+// Outputs: 	src, KbufL
+//
+/[
+SkipSp,0
+	CLA
+SkipS0,	TAD I 	src
+	TAD	[-40]		/ <SPACE>
+	SZA
+	JMP I 	SkipSp
+	ISZ	src		/ src++
+	TAD	KBufL
+	TAD 	[-1]
+	DCA 	KBufL
+	JMP	SkipS0	
+/]
+
+
+//   _____                        __  __
+//  |__  /   ___   _ __    ___   |  \/  |
+//    / /   / _ \ | '__|  / _ \  | |\/| |
+//   / /_  |  __/ | |    | (_) | | |  | |
+//  /____|  \___| |_|     \___/  |_|  |_|
+//
+// Input iP1	The address before the start of block to be filled
+// 	 len 	Negitive number of bytes to be filled
+//
+/[
+ZeroM,	0
+	CLA
+ZeroM0,	DCA I 	iP1
+	ISZ	cnt
+	JMP 	ZeroM0
+	JMP I 	ZeroM
+/]
 
 
 *1600
@@ -837,12 +1084,12 @@ ListS1, CLA
 // AC should be set to one of these numbers to select the
 // type of comparison
 //
-//	-5   7773  =
-//	-6   7772  >=
-//	-7   7771  >
-//	-10  7770  <>
-//	-11  7767  <=
-//	-12  7766  <
+//	tkEQ= 	 -4
+//	tkGTEQ=	 -5
+//	tkGT=	 -6
+//	tkNE=	 -7
+//	tkLNEQ=	-10
+//	tkLT=	-11
 //
 //	If comparison is false, return with L=0
 //	If comparison is true, return with L=1
@@ -869,16 +1116,16 @@ Compar, 0
 	ISZ 	Compar		/ Bump up return address
 
 /SUBTRA,
-        CLA CLL			/ not required if previous code always leaves AC==0
-        TAD  	Arg2H+1
-        CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
-        TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
-        DCA  	ResH+1
-        RAL			/ propagate "complemented" borrow
-        TAD  	Arg2H		/ add previous stage borrow before forming negative
-        CMA CML IAC		/ form 13-bit negative
-        TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
-        DCA  	ResH
+		CLA CLL			/ not required if previous code always leaves AC==0
+		TAD  	Arg2H+1
+		CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
+		TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
+		DCA  	ResH+1
+		RAL			/ propagate "complemented" borrow
+		TAD  	Arg2H		/ add previous stage borrow before forming negative
+		CMA CML IAC		/ form 13-bit negative
+		TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
+		DCA  	ResH
 
 	CLA			/ After this ResH+1 is zero if both ResH
 	TAD 	ResH		/ and ResH+1 was zero. And ResH can be tested
@@ -1204,16 +1451,16 @@ Add,	0
 //          L=0 if underflow 
 /[
 Sub,	0
-        CLA CLL			/ not required if previous code always leaves AC==0
-        TAD  	Arg2H+1
-        CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
-        TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
-        DCA  	ResH+1
-        RAL			/ propagate "complemented" borrow
-        TAD  	Arg2H		/ add previous stage borrow before forming negative
-        CMA CML IAC		/ form 13-bit negative
-        TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
-        DCA  	ResH
+		CLA CLL			/ not required if previous code always leaves AC==0
+		TAD  	Arg2H+1
+		CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
+		TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
+		DCA  	ResH+1
+		RAL			/ propagate "complemented" borrow
+		TAD  	Arg2H		/ add previous stage borrow before forming negative
+		CMA CML IAC		/ form 13-bit negative
+		TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
+		DCA  	ResH
 	JMP I	Sub
 /]
 //   ____    ___  __     __  ___   ____    _____
@@ -1366,8 +1613,8 @@ ATOL0,	TAD I 	src		/ Get character
 	ISZ 	src		/ Tncrement the source address
 
 	JMS	Multip		/ Multiply the summing up variable by 10
-		    numH
-		    DW10	
+			numH
+			DW10	
 
 	CLA CLL			/ Copy result back to the summing up variable
 	TAD	D
@@ -1627,20 +1874,13 @@ rseed1,		0001  		/ 36bit random(seed) word Low part
 //
 /[
 CODE,
-
-	0001; 1610; 0006; 7775; 0111; 0111; 7775; 0
-	0002; 3420; 0006; 7775; 0122; 0122; 7775; 0
-	0003; 5230; 0006; 7775; 0133; 0133; 7775; 0
-	0004; 7040; 0006; 7775; 0144; 0144; 7775; 0
-
-
-/CODE0,	0000; 0001; 0006; 7754; 7740; 7753; 7741; 0							/   1 IF RUN THEN END ???
-/CODE1,	0000; 0144; 0011; 7756; 7777; 0101; 7774; 7756; 7777; 0102; 0					/ 100 PRINT A:PRINT B
-/CODE2,	0000; 0310; 0010; 7757; 7777; 0101; 7773; 7777; 0102; 0						/ 200 LET A=B
-/CODE3,	0000; 0454; 0016; 7754; 7777; 0101; 7773; 7777; 0102; 7753; 7777; 0103; 7773; 7777; 0104; 0	/ 300 IF A=B THEN C=D
-/CODE4,  0000; 0620; 0014; 7757; 7777; 0101; 7773; 7777; 0101; 7765; 7776; 0036; 1100; 0			/ 400 LET A = A + 123456
-/CODE5,  0000; 0764; 0010;  7756; 7775; 0101; 0102; 0103; 7775; 0					/ 500 PRINT "ABC"
-
+	0;12;22;tkPRIN;tkSTRI; 110;145;154;154;157;54;40;167;157;162;154;144;41;tkSTRI;0	/ 10 PRINT "Hello, world!"
+	0;24;5;tkPRIN;tkVAR;101;0								/ 20 PRINT A
+	0;25;5;tkPRIN;tkVAR;102;0								/ 21 PRINT B
+	0;26;5;tkPRIN;tkVAR;103;0								/ 22 PRINT C
+	0;27;5;tkPRIN;tkVAR;104;0								/ 23 PRINT D
+	0;36;6;tkPRIN;tkCONS;36;1100;0								/ 30 PRINT 123456
+	0;50;3;tkEND;0										/ 40 END
 	7777
 
 //					       __     ____     ___     ___
@@ -1698,7 +1938,9 @@ TokBuf,	ZBLOCK 	10		/ Used for a bit of extra space when tokenizing
 
 KBuf,	ZBLOCK	120		/ Keyboard input buffer 80(dec) bytes
 
-AZvars,	ZBLOCK 	64		/ The A-Z variables 26*2(dec) bytes
+/AZvars,	ZBLOCK 	64		/ The A-Z variables 26*2(dec) bytes
+AZvars,	1;1; 2;2; 3;3; ZBLOCK 56		/ The A-Z variables 26*2(dec) bytes
+
 /]
 
 
@@ -1718,41 +1960,53 @@ SynErr,	15; 12; "S; "Y; "N; "T; "A; "X; 15; 12; 0
 BsSpBs,	10; 40; 10; 0
 
 CmdTxt,
-	1;				-1	/ 7777  Variable token
-	2;				-2	/ 7776  Constant token
-	42;				-3	/ 7775  "
-	72;				-4	/ 7774  :
-	75;				-5	/ 7773  =
-	76;75;				-6	/ 7772  >=
-	76;				-7	/ 7771  >
-	74;76;				-10	/ 7770  <>
-	74;75;				-11	/ 7767  <=
-	74;				-12	/ 7766  <
-	53;				-13	/ 7765  +
-	55;				-14	/ 7764  -
-	52;				-15	/ 7763  *
-	57;				-16	/ 7762  /
-	50;				-17	/ 7761  (
-	51;				-20	/ 7760  )
-	114;105;124;			-21	/ 7757  LET
-	120;122;111;116;124;		-22	/ 7756  PRINT
-	77;				-23	/ 7755  ?
-	111;106;			-24	/ 7754  IF
-	124;110;105;116;		-25	/ 7753  THEN 
-	105;114;123;105;		-26	/ 7752  ELSE
-	107;117;124;117;		-27	/ 7751  GOTO
-	107;117;123;125;102;		-30	/ 7750  GOSUB
-	122;105;124;125;122;116;	-31	/ 7747  RETURN
-	106;117;122;			-32	/ 7746  FOR
-	124;117;			-33 	/ 7745  TO
-	123;124;105;120;		-34	/ 7744  STEP
-	116;105;130;124;		-35 	/ 7743  NEXT
-	122;116;104;			-36	/ 7742  RND
-	105;116;104;			-37	/ 7741  END 
-	122;125;116;			-40	/ 7740  RUN
-	114;111;123;124;		-41	/ 7737  LIST
-	116;105;127;			-42	/ 7736  NEW
-	0
+tkVAR=	 -1;	1		; tkVAR		/   Variable
+tkCONS=	 -2;	2		; tkCONS	/   Constant
+tkSTRI=  -3;	42		; tkSTRI	/ " String start/end
+tkEQ= 	 -4;	ASCII "="	; tkEQ		/ Comparison
+tkGTEQ=	 -5;	ASCII ">="	; tkGTEQ	/ Comparison
+tkGT=	 -6;	ASCII ">"	; tkGT		/ Comparison
+tkNE=	 -7;	ASCII "<>"	; tkNE		/ Comparison
+tkLNEQ=	-10;	ASCII "<="	; tkLNEQ	/ Comparison
+tkLT=	-11;	ASCII "<"	; tkLT		/ Comparison
+tkPLUS=	-12;	ASCII "+"	; tkPLUS	/ 
+tkMINU=	-13;	ASCII "-"	; tkMINU	/ 
+tkMULT=	-14;	ASCII "*"	; tkMULT	/ 
+tkDIVI=	-15;	ASCII "/"	; tkDIVI	/ 
+tkLPAR=	-16;	ASCII "("	; tkLPAR	/ 
+tkRPAR=	-17;	ASCII ")"	; tkRPAR	/ 
+tkSEMI= -20;	ASCII ";"	; tkSEMI	/ Print space, no CRLF
+tkCOMM= -21;	ASCII ","	; tkCOMM	/ Print in columns 
+tkREM=	-20;	ASCII "REM"	; tkREM		/ Command - Ignore rest of line
+tkCOLO=	-21;	ASCII ":"	; tkCOLO	/ Command - Ignore this and continue
+tkLET=	-22;	ASCII "LET"	; tkLET		/ Command
+tkINPU=	-23;	ASCII "INPUT"	; tkINPU	/ Command
+tkGET=	-24;	ASCII "GET"	; tkGET		/ Command 
+tkPRIN=	-25;	ASCII "PRINT"	; tkPRIN	/ Command
+tkPRIQ=	-26;	ASCII "?"	; tkPRIQ	/ Command
+tkIF=	-27;	ASCII "IF"	; tkIF		/ Command
+tkFOR=	-30;	ASCII "FOR"	; tkFOR		/ Command
+tkNEXT=	-31;	ASCII "NEXT"	; tkNEXT	/ Command
+tkGOTO=	-32;	ASCII "GOTO"	; tkGOTO	/ Command
+tkGOSU=	-33;	ASCII "GOSUB"	; tkGOSU	/ Command
+tkRETU=	-34;	ASCII "RETURN"	; tkRETU	/ Command
+tkEND=	-35;	ASCII "END"	; tkEND		/ Command
+tkTHEN=	-36;	ASCII "THEN"	; tkTHEN	/  
+tkELSE=	-37;	ASCII "ELSE"	; tkELSE	/ 
+tkTO=	-40;	ASCII "TO"	; tkTO		/ 
+tkSTEP=	-41;	ASCII "STEP"	; tkSTEP	/ 
+tkRND=	-42;	ASCII "RND"	; tkRND		/ 
+tkABS=	-43;	ASCII "ABS"	; tkABS		/ 
+tkCHR=	-44;	ASCII "CHR"	; tkCHR		/ 
+tkRUN=	-45;	ASCII "RUN"	; tkRUN		/ Direct command
+tkLIST=	-46;	ASCII "LIST"	; tkLIST	/ Direct command
+tkNEW=	-47;	ASCII "NEW"	; tkNEW		/ Direct command
+tkFREE=	-50;	ASCII "FREE"	; tkFREE	/ Direct command
+	0					/ End-of-table marker
+
+tkOFS1=  50;					/ Direct cmd offset
+tkOFS2=  35;					/ Command offset
+
 /]
 
 
@@ -1864,8 +2118,8 @@ ChrOut,	0
 /[
 GetKey,	0
 	KSF     		/ Spin here until a character is available
-        JMP 	.-1	
-        KRB     		/ Read character
+		JMP 	.-1	
+		KRB     		/ Read character
 	AND 	[177]		/ Only keep the 7 lowest bits
 	DCA	Key		/ Save the read character in Key
 	TAD	Key		/ Return with the character in AC as well
@@ -1873,85 +2127,9 @@ GetKey,	0
 /]
 
 
-//   _____                        __  __
-//  |__  /   ___   _ __    ___   |  \/  |
-//    / /   / _ \ | '__|  / _ \  | |\/| |
-//   / /_  |  __/ | |    | (_) | | |  | |
-//  /____|  \___| |_|     \___/  |_|  |_|
-//
-// Input iP1	The address before the start of block to be filled
-// 	 len 	Negitive number of bytes to be filled
-//
-/[
-ZeroM,	0
-	CLA
-ZeroM0,	DCA I 	iP1
-	ISZ	cnt
-	JMP 	ZeroM0
-	JMP I 	ZeroM
-/]
 
 
-//   ____    _      _           ____
-//  / ___|  | | __ (_)  _ __   / ___|   _ __
-//  \___ \  | |/ / | | | '_ \  \___ \  | '_ \
-//   ___) | |   <  | | | |_) |  ___) | | |_) |
-//  |____/  |_|\_\ |_| | .__/  |____/  | .__/
-//                     |_|             |_|
-//
-// Advance 'src' to point to the first non-space character
-//
-// Inputs: 	src, KbufL
-// Outputs: 	src, KbufL
-//
-/[
-SkipSp,0
-	CLA
-SkipS0,	TAD I 	src
-	TAD	[-40]		/ <SPACE>
-	SZA
-	JMP I 	SkipSp
-	JMS 	IncSrc		/ src++
-	TAD	KBufL
-	TAD 	[-1]
-	DCA 	KBufL
-	JMP	SkipS0	
-/]
 
-
-//   ___                  ____
-//  |_ _|  _ __     ___  / ___|   _ __    ___
-//   | |  | '_ \   / __| \___ \  | '__|  / __|
-//   | |  | | | | | (__   ___) | | |    | (__
-//  |___| |_| |_|  \___| |____/  |_|     \___|
-//
-/[
-IncSrc,	0
-	CLA
-	TAD 	src
-	IAC
-	DCA	src
-	JMP I 	IncSrc
-/]
-
-//
-//      _                      ____          _
-//     / \     _ __    _ __   |  _ \   ___  | |_
-//    / _ \   | '_ \  | '_ \  | | | | / __| | __|
-//   / ___ \  | |_) | | |_) | | |_| | \__ \ | |_
-//  /_/   \_\ | .__/  | .__/  |____/  |___/  \__|
-//            |_|     |_|
-//
-// Store AC at the end of the dst array, increment the dst pointer
-// Returns with AC zero
-//
-/[
-AppDst,	0
-	DCA I 	dst		/ Store it in the destination array
-	ISZ	dst		/ Increment dst pointer
-	ISZ 	TokBuf+2	/ Increment length of destination
-	JMP I 	AppDst
-/]
 
 
 //   ____                    _
