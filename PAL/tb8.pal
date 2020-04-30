@@ -28,6 +28,13 @@ NL7777=CLA CMA 			/ 7777 4095(dec)
 /NLM2=NL7776			/ -2
 NLM1=NL7777			/ -1
 
+SkpZER=SZA		/ Skip if Zero Accumulator
+SkpNOZ=SNA		/ Skip if Nonzero Accumulator
+SkpNEG=SMA		/ Skip if Minus Accumulator
+SkpPOS=SPA		/ Skip if Positive Accumulator
+SkpNE0=SMA SZA		/ Skip if Less than or Equal to Zero
+SkpGT0=SPA SNA 		/ Skip if Greater than Zero
+
 
 *0	
 //					       ___     ___     ___     ___
@@ -303,6 +310,7 @@ Runnin,	ISZ	src	/ Skip lineno and length
 	ISZ 	src
 	ISZ 	src
 
+	CLA CLL
 	TAD I 	src
 	TAD	(tkOFS2+JMPTB2)
 	DCA 	JMPVE2
@@ -339,7 +347,6 @@ cFOR,
 cIFF,
 cGET,
 cINPUT, 
-cLET,
 cCOLON,
 cREM,	JMP I	Prompt
 
@@ -367,83 +374,6 @@ cEND,	JMP I 	Prompt
 //					      \___/     |_|    \___/   \___/
 
 
-//          ____    ____    ___   _   _   _____
-//    ___  |  _ \  |  _ \  |_ _| | \ | | |_   _|
-//   / __| | |_) | | |_) |  | |  |  \| |   | |
-//  | (__  |  __/  |  _ <   | |  | |\  |   | |
-//   \___| |_|     |_| \_\ |___| |_| \_|   |_|
-//
-//
-// tkVAR=  -1;	1		; tkVAR		/   Variable
-// tkCONS= -2;	2		; tkCONS	/   Constant
-// tkSTRI= -3;	42		; tkSTRI	/ " String start/end
-//
-// PRINT returns after NIL or tkCOLO
-// PRINT outputs a CRLF before returning if the last token wasn't tkSEMI
-// PRINT outputs a SPACE at tkCOMM
-/[
-cPRINT,
-	ISZ	src
-	TAD I 	src
-	SNA
-	JMP 	cPrEnd
-	TAD 	(tkCOLO)
-	SNA
-	JMP 	cPrEnd
-	TAD 	(-tkCOLO)
-	TAD 	(1)
-	SNA 	
-	JMP 	cPRINv
-	TAD 	(1)
-	SNA 	
-	JMP 	cPRINc
-
-	/
-	/ Print string
-	/
-cPRINs,	ISZ 	src		/ This will skip the leading "
-	CLA			/ Get character to print
-	TAD I 	src
-	TAD 	[-tkSTRI]
-	SNA			/ at end of message
-	JMP 	cPRINT		/  yes, maybe do more printing?
-	TAD	[tkSTRI]
-	JMS 	ChrOut		/ Call the character out for printing
-	JMP 	cPRINs		/ Now do next character
-
-	/
-	/ Print variable
-	/
-cPRINv,	ISZ 	src
-	CLA CLL
-	TAD I 	src
-	TAD 	(-101)
-	RAL
-	TAD 	(AZvars)
-	DCA	.+2
-	JMS I	OutInt; 0	
-	JMP 	cPRINT		/ Maybe do more printing?
-
-	/
-	/ Print constant
-	/
-cPRINc,
-	ISZ 	src
-	CLA
-	TAD 	src
-	DCA 	.+2
-	JMS I	OutInt; 0	
-	ISZ 	src		/ skip the bytes of the constant
-	JMP 	cPRINT		/ Maybe do more printing?
-
-	/
-	/ Print final CRLF (if not supressed) and go back to parse more tokens
-	/
-cPrEnd,	JMS 	TxtOut; CRLF
-	ISZ 	src		/ skip the NIL or COLON
-	JMP 	Running
-
-/]
 
 
 
@@ -637,6 +567,108 @@ FndLiE,	CLL CML			/ Found exact, return with L=1
 //					     | | | |_| | | |_| | | |_| |
 //					     |_|  \___/   \___/   \___/
 
+//          _       _____   _____
+//    ___  | |     | ____| |_   _|
+//   / __| | |     |  _|     | |
+//  | (__  | |___  | |___    | |
+//   \___| |_____| |_____|   |_|
+//
+// 13 LET D=A
+// 0;15;10;tkLET;tkVAR;104;tkEQ;tkVAR;101;0
+// 06024:    0000 0015 0010 7754 7777 0104 7774 7777 0101 0000
+//
+// 14 LET C=4711
+// 0;16;11;tkLET;tkVAR;103;tkEQ;tkCONS;1;1147;0
+// 06036:    0000 0016 0011 7754 7777 0103 7774 7776 0001 1147 0000
+// 
+//
+/[
+cLET,
+	ISZ 	src
+	CLA CLL
+	TAD I 	src		/ Check if token is Variable
+	TAD	[-tkVAR]
+	SkpZER 			/ Skip if Zero (match)
+	JMP 	cLetEr
+
+	ISZ 	src
+	CLA CLL
+	TAD I 	src		/ Get destination variable address
+	TAD 	(-101)
+	CLL RAL
+	TAD 	(AZvars)
+	DCA	dst
+
+	ISZ 	src
+	CLA CLL
+	TAD I 	src		/ Check if token is equal sign
+	TAD	[-tkEQ]
+	SkpZER			/ Skip if Zero (match)
+	JMP 	cLetEr
+
+	ISZ 	src
+	CLA CLL
+	TAD I 	src		/ Check if token is Constant
+	TAD	[-tkCONS]
+	SkpNOZ			/ Skip if non-zero (not match) 	
+	JMP 	cLetCo
+	CLA CLL
+	TAD I 	src		/ Else check if token is Variable
+	TAD	[-tkVAR]
+	SkpZER			/ Skip if Zero (match)
+	JMP 	cLetEr
+
+	/
+	/ Copy contents of variable into destination variable
+	/
+cLetVa,
+	ISZ 	src		/ Get source variable address
+	CLA CLL
+	TAD I 	src		
+	TAD 	(-101)
+	CLL RAL
+	TAD 	(AZvars)
+	DCA	tmp	/ Store address in tmp
+	TAD I 	tmp	/ Copy High byte
+	DCA I 	dst
+	ISZ 	tmp
+	ISZ 	dst
+	TAD I 	tmp	/ Copy Low byte
+	DCA I 	dst
+	ISZ 	src
+	JMP 	cLetEx
+
+	/
+	/ Copy constant value into destination variable
+	/
+cLetCo,
+	ISZ 	src	/ Copy High byte
+	CLA CLL
+	TAD I 	src
+	DCA I 	dst
+	ISZ 	dst
+	ISZ	src	/ Copy Low byte
+	CLA CLL
+	TAD I 	src
+	DCA I 	dst
+	ISZ 	src
+
+	/
+	/ Skip over the final NIL or the COLON on the line
+	/ and go back to process more tokens.
+	/
+cLetEx,	ISZ 	src		/ skip the NIL or COLON
+	JMP 	Running
+
+
+	/
+	/ We encountered a syntax error on the line. The Run is aborted by
+	/ going back to the prompt after printing the error message
+	/	
+cLetEr,
+	JMP  	Syntax
+/]
+
 
 
 *1200
@@ -646,6 +678,107 @@ FndLiE,	CLL CML			/ Found exact, return with L=1
 //					     | |  / __/  | |_| | | |_| |
 //					     |_| |_____|  \___/   \___/
 
+//          ____    ____    ___   _   _   _____
+//    ___  |  _ \  |  _ \  |_ _| | \ | | |_   _|
+//   / __| | |_) | | |_) |  | |  |  \| |   | |
+//  | (__  |  __/  |  _ <   | |  | |\  |   | |
+//   \___| |_|     |_| \_\ |___| |_| \_|   |_|
+//
+//
+// tkVAR=  -1;	1		; tkVAR		/   Variable
+// tkCONS= -2;	2		; tkCONS	/   Constant
+// tkSTRI= -3;	42		; tkSTRI	/ " String start/end
+//
+// PRINT returns after NIL or tkCOLO
+// PRINT outputs a CRLF before returning if the last token wasn't tkSEMI
+// PRINT outputs a SPACE at tkSEMI
+// PRINT outputs SPACED to next tabstop at tkCOMM
+/[
+
+cPRIfl,	0		/ Flag for not printing CRLF at the end
+
+cPRIf0, NLM1		/ Turn off the NO-CRLF flag by setting it to -1
+	DCA 	cPRIfl	/ and then falling into the increment function
+			/ to have it end up as 0
+
+cPRIf1,	ISZ	cPRIfl 	/ Set NO-CRLF flag and then fall into the regular 
+	NOP		/ printing function. This is called whenever a
+			/ tkSEMI is encountered. The NOP is eeeded here since 
+			/ we go from 7777 to 0
+
+cPRINT,
+	ISZ	src
+	CLA CLL
+	TAD I 	src
+	SkpNOZ
+	JMP 	cPrEnd
+
+	TAD 	(-tkCOLO)
+	SkpNOZ
+	JMP 	cPrEnd
+	TAD 	(tkCOLO)
+
+	TAD 	(-tkSEMI)
+	SkpNOZ
+	JMP 	cPRIf1		/ Got a semicolon, so set the flag, and try more printing
+	TAD 	(tkSEMI)
+
+	TAD 	(1)
+	SkpNOZ
+	JMP 	cPRINv		/ Print a variable
+	TAD 	(1)
+	SkpNOZ	
+	JMP 	cPRINc		/ Print a constant
+
+	/
+	/ Print string
+	/
+cPRINs,	ISZ 	src		/ This will skip the leading "
+	CLA			/ Get character to print
+	TAD I 	src
+	TAD 	[-tkSTRI]
+	SNA			/ at end of message
+	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
+	TAD	[tkSTRI]
+	JMS 	ChrOut		/ Call the character out for printing
+	JMP 	cPRINs		/ Now do next character
+
+	/
+	/ Print variable
+	/
+cPRINv,	ISZ 	src
+	CLA CLL
+	TAD I 	src
+	TAD 	(-101)
+	CLL RAL
+	TAD 	(AZvars)
+	DCA	.+2
+	JMS I	OutInt; 0	
+	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
+
+	/
+	/ Print constant
+	/
+cPRINc,
+	ISZ 	src
+	CLA
+	TAD 	src
+	DCA 	.+2
+	JMS I	OutInt; 0	
+	ISZ 	src		/ skip the bytes of the constant
+	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
+
+	/
+	/ Print final CRLF (if not supressed) and go back to parse more tokens
+	/
+cPrEnd,	CLA			/ Is the CRLF supressed by the semicolon-flag?
+	TAD	cPRIfl
+	SkpGT0
+	JMS 	TxtOut; CRLF
+	ISZ 	src		/ skip the NIL or COLON
+	JMP 	Running
+
+/]
 
 
 *1400
@@ -1875,6 +2008,9 @@ rseed1,		0001  		/ 36bit random(seed) word Low part
 /[
 CODE,
 	0;12;22;tkPRIN;tkSTRI; 110;145;154;154;157;54;40;167;157;162;154;144;41;tkSTRI;0	/ 10 PRINT "Hello, world!"
+	0;15;10;tkLET;tkVAR;104;tkEQ;tkVAR;101;0						/ 13 LET D=A
+/	0;16;11;tkLET;tkVAR;104;tkEQ;tkCONS;0;1053;0						/ 14 LET D=555
+	0;16;11;tkLET;tkVAR;103;tkEQ;tkCONS;1;1147;0						/ 14 LET C=4711
 	0;24;5;tkPRIN;tkVAR;101;0								/ 20 PRINT A
 	0;25;5;tkPRIN;tkVAR;102;0								/ 21 PRINT B
 	0;26;5;tkPRIN;tkVAR;103;0								/ 22 PRINT C
@@ -1977,35 +2113,35 @@ tkLPAR=	-16;	ASCII "("	; tkLPAR	/
 tkRPAR=	-17;	ASCII ")"	; tkRPAR	/ 
 tkSEMI= -20;	ASCII ";"	; tkSEMI	/ Print space, no CRLF
 tkCOMM= -21;	ASCII ","	; tkCOMM	/ Print in columns 
-tkREM=	-20;	ASCII "REM"	; tkREM		/ Command - Ignore rest of line
-tkCOLO=	-21;	ASCII ":"	; tkCOLO	/ Command - Ignore this and continue
-tkLET=	-22;	ASCII "LET"	; tkLET		/ Command
-tkINPU=	-23;	ASCII "INPUT"	; tkINPU	/ Command
-tkGET=	-24;	ASCII "GET"	; tkGET		/ Command 
-tkPRIN=	-25;	ASCII "PRINT"	; tkPRIN	/ Command
-tkPRIQ=	-26;	ASCII "?"	; tkPRIQ	/ Command
-tkIF=	-27;	ASCII "IF"	; tkIF		/ Command
-tkFOR=	-30;	ASCII "FOR"	; tkFOR		/ Command
-tkNEXT=	-31;	ASCII "NEXT"	; tkNEXT	/ Command
-tkGOTO=	-32;	ASCII "GOTO"	; tkGOTO	/ Command
-tkGOSU=	-33;	ASCII "GOSUB"	; tkGOSU	/ Command
-tkRETU=	-34;	ASCII "RETURN"	; tkRETU	/ Command
-tkEND=	-35;	ASCII "END"	; tkEND		/ Command
-tkTHEN=	-36;	ASCII "THEN"	; tkTHEN	/  
-tkELSE=	-37;	ASCII "ELSE"	; tkELSE	/ 
-tkTO=	-40;	ASCII "TO"	; tkTO		/ 
-tkSTEP=	-41;	ASCII "STEP"	; tkSTEP	/ 
-tkRND=	-42;	ASCII "RND"	; tkRND		/ 
-tkABS=	-43;	ASCII "ABS"	; tkABS		/ 
-tkCHR=	-44;	ASCII "CHR"	; tkCHR		/ 
-tkRUN=	-45;	ASCII "RUN"	; tkRUN		/ Direct command
-tkLIST=	-46;	ASCII "LIST"	; tkLIST	/ Direct command
-tkNEW=	-47;	ASCII "NEW"	; tkNEW		/ Direct command
-tkFREE=	-50;	ASCII "FREE"	; tkFREE	/ Direct command
+tkREM=	-22;	ASCII "REM"	; tkREM		/ Command - Ignore rest of line
+tkCOLO=	-23;	ASCII ":"	; tkCOLO	/ Command - Ignore this and continue
+tkLET=	-24;	ASCII "LET"	; tkLET		/ Command
+tkINPU=	-25;	ASCII "INPUT"	; tkINPU	/ Command
+tkGET=	-26;	ASCII "GET"	; tkGET		/ Command 
+tkPRIN=	-27;	ASCII "PRINT"	; tkPRIN	/ Command
+tkPRIQ=	-30;	ASCII "?"	; tkPRIQ	/ Command
+tkIF=	-31;	ASCII "IF"	; tkIF		/ Command
+tkFOR=	-32;	ASCII "FOR"	; tkFOR		/ Command
+tkNEXT=	-33;	ASCII "NEXT"	; tkNEXT	/ Command
+tkGOTO=	-34;	ASCII "GOTO"	; tkGOTO	/ Command
+tkGOSU=	-35;	ASCII "GOSUB"	; tkGOSU	/ Command
+tkRETU=	-36;	ASCII "RETURN"	; tkRETU	/ Command
+tkEND=	-37;	ASCII "END"	; tkEND		/ Command
+tkTHEN=	-40;	ASCII "THEN"	; tkTHEN	/  
+tkELSE=	-41;	ASCII "ELSE"	; tkELSE	/ 
+tkTO=	-42;	ASCII "TO"	; tkTO		/ 
+tkSTEP=	-43;	ASCII "STEP"	; tkSTEP	/ 
+tkRND=	-44;	ASCII "RND"	; tkRND		/ 
+tkABS=	-45;	ASCII "ABS"	; tkABS		/ 
+tkCHR=	-46;	ASCII "CHR"	; tkCHR		/ 
+tkRUN=	-47;	ASCII "RUN"	; tkRUN		/ Direct command
+tkLIST=	-50;	ASCII "LIST"	; tkLIST	/ Direct command
+tkNEW=	-51;	ASCII "NEW"	; tkNEW		/ Direct command
+tkFREE=	-52;	ASCII "FREE"	; tkFREE	/ Direct command
 	0					/ End-of-table marker
 
-tkOFS1=  50;					/ Direct cmd offset
-tkOFS2=  35;					/ Command offset
+tkOFS1=  52;					/ Direct cmd offset
+tkOFS2=  37;					/ Command offset
 
 /]
 

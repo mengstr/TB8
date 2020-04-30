@@ -18,7 +18,7 @@
 /     170  x   171  y   172  z   173  {   174  |   175  }   176  ~   177 del
 /
 /
-/
+/ 110;145;154;154;157;54;40;167;157;162;154;144;41;12;15
 /
 / Block copying
 /
@@ -57,20 +57,16 @@
 /
 / A 24 bit signed integet is +/- 8 388 607
 /
-/	SMA 		Skip if Minus Accumulator
-/	SZA 		Skip if Zero Accumulator
+/	SMA 		Skip if Minus Accumulator.    Skip on AC < 0
+/	SZA 		Skip if Zero Accumulator.     Skip on AC = 0
 /	SNL 		Skip if Nonzero Link
-/	SPA 		Skip if Positive Accumulator
-/	SNA 		Skip if Nonzero Accumulator
+/	SPA 		Skip if Positive Accumulator. Skip on AC >= 0
+/	SNA 		Skip if Nonzero Accumulator.  Skip on AC <> 0
 /	SZL 		Skip if Zero Link
 /   SMA SZA		Skip if Less than or Equal to Zero
 /	SPA SNA 	Skip if Greater than Zero
-/	SZA        	Skip on AC = 0
-/	SNA        	Skip on AC <> 0
 /	SZA SNL    	Skip on AC = 0 or L <> 0
 /	SNA SZL    	Skip on AC <> 0 and L = 0
-/	SMA        	Skip on AC < 0
-/	SPA        	Skip on AC >= 0
 /	SMA SNL    	Skip on AC < 0 or L <> 0
 /	SPA SZL    	Skip on AC >= 0 and L = 0
 /	SMA SZA    	Skip on AC <= 0
@@ -256,12 +252,21 @@
 /
 /
 
-
+6000: 0000 0001 0006 7754 7740 7753 7741 0000
+6010: 0000 0144 0011 7756 7777 0101 7774 7756
+6020: 7777 0102 0000<0000 0310 0010 7757 7777
+6030: 0121 7773 7777 0127>0000 0016 7754 7777
+6040: 0101 7773 7777 0000 0620 0014 7757 7777
+6050: 0101 7773 7777 0101 7765 7776 0036 1100
+6060: 0000 0000 0764 0010 7756 7775 0101 0102
+6070: 0103 7775 0000 7777 7402 7402 7402 7402
+6100: 7402 7402 7402 7402 7402 7402 7402 7402
+6110: 7402 7402 7402 7402 7402 7402 7402 7402
 
 
 6000: 0000 0001 0006 7754 7740 7753 7741 0000   // ORIGINAL
 6010: 0000 0144 0011 7756 7777 0101 7774 7756   // ORIGINAL
-6020: 7777 0102 0000 0000 0310 0010 7757 7777   // ORIGINAL
+6020: 7777 0102 0000<0000 0310 0010 7757 7777   // ORIGINAL
 6030: 0101 7773 7777 0102 0000 0000 0454 0016   // ORIGINAL
 6040: 7754 7777 0101 7773 7777 0102 7753 7777   // ORIGINAL
 6050: 0103 7773 7777 0104 0000 0000 0620 0014   // ORIGINAL
