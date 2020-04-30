@@ -213,6 +213,8 @@ PrompX,	CLA			/ Clear buffers
 	/
 	ISZ 	iP1		/ Skip the length
 	TAD I 	iP1		/ Retrieve the command
+	SkpNOZ			/ Empty line?
+	JMP I 	Prompt
 
 	TAD	[tkOFS1+JMPTB1]
 	DCA 	JMPVE1
@@ -893,8 +895,8 @@ Token4,	CLA CLL
 	TAD 	[-31]		/ Check if character is <= than Z
 	SMA
 	JMP	Token5		/ Not A..Z, go check if it's a number
-	CLA
-	TAD 	[-1]		/ Token for variable is -1
+	CLA CLL
+	TAD 	[tkVAR]		/ Store variable token in dst array
 	JMS 	AppDst
 	TAD I 	SRC		/ Store variable name as is
 	JMS 	AppDst
@@ -904,25 +906,56 @@ Token4,	CLA CLL
 	/
 	/ Does the token start with a digit? Then assume it's a number
 	/
-Token5,	TAD	[-60]		/ subtract '0'
+Token5,	CLA CLL
+	TAD I	src
+	TAD	[-60]		/ subtract '0'
 	SPA
 	JMP  	Token6		/ Nope, not a digit
 	TAD 	[-12]		/ Check if number is less than 10
 	SMA
 	JMP  	Token6		/ Nope, not a digit
 	JMS	ATOL		/ Reads from src, stores in numH,numL, returns cnt used in AC
-	TAD 	[-2]		/ Token for constant is -2
+	CLA CLL
+	TAD 	[tkCONS]	/ Store constant token in dst array
 	JMS 	AppDst
 	TAD 	numH		/ Store the number in dst array
 	JMS 	AppDst
 	TAD 	numL		/ Store the number in dst array
 	JMS 	AppDst
+	ISZ	src		/ src++, Advance to next character
+	JMP 	TokenL		/ Continue scanning for more tokens
+
+	/
+	/ Does the token start with a quote? Then it's a string
+	/
+Token6,	CLA CLL
+	TAD I	src
+	TAD	(-42)
+	SkpZER
+	JMP 	Token7
+	CLA CLL
+	TAD 	[tkSTRI]	/ Store string token in dst array
+	JMS 	AppDst
+TknS,	ISZ 	src
+	CLA			/ Get character to print
+	TAD I 	src
+	TAD 	(-42)
+	SNA			/ at end of message
+	JMP 	TknSE
+	TAD	(42)
+	JMS 	AppDst
+	JMP 	TknS
+
+TknSE,	CLA CLL
+	TAD 	[tkSTRI]	/ Store string token in dst array
+	JMS 	AppDst
+	ISZ	src		/ src++, Advance to next character
 	JMP 	TokenL		/ Continue scanning for more tokens
 
 	/
 	/ Can't parse it, so syntax error it is
 	/
-Token6,	JMP Syntax
+Token7,	JMP Syntax
 
 	/
 	/ We matched a token, so store it in the dst array
@@ -942,6 +975,15 @@ TokenD,	/ TOKEN DONE
 
 srcHld,	0	
 /]
+
+
+*1600
+//					      _    __      ___     ___
+//					     / |  / /_    / _ \   / _ \
+//					     | | | '_ \  | | | | | | | |
+//					     | | | (_) | | |_| | | |_| |
+//					     |_|  \___/   \___/   \___/
+
 
 //
 //      _                      ____          _
@@ -1008,13 +1050,6 @@ ZeroM0,	DCA I 	iP1
 	JMP I 	ZeroM
 /]
 
-
-*1600
-//					      _    __      ___     ___
-//					     / |  / /_    / _ \   / _ \
-//					     | | | '_ \  | | | | | | | |
-//					     | | | (_) | | |_| | | |_| |
-//					     |_|  \___/   \___/   \___/
 
 //   _       _         _
 //  | |     (_)  ___  | |_
@@ -1488,7 +1523,8 @@ ReadL0,
 
 	TAD	[-3]		/ Subtract delta to ENTER
 	SNA			/ Test if it was ENTER
-	JMP 	ReadE 		/ Yes, go add trailing space for tokenizer
+	JMP 	ReadE 		/ Yes, go add trailing space for tokenizer and
+				/ then exit.
 
 	TAD	[-162]		/ Subtract delta to DELETE
 	SNA			/ Test if it was DELETE
