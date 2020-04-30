@@ -795,8 +795,8 @@ cPrEnd,	CLA			/ Is the CRLF supressed by the semicolon-flag?
 //    |_|   \___/  |_|\_\  \___| |_| |_| |_|
 //
 // Tokenizes the NUL-terminated string in KBuf and stores the tokens 
-// in TokBuf.
-//
+// in TokBuf.  The string needs to have a trailing <space> in order to
+// not lose the last token on the line.
 //
 //
 /[
@@ -848,8 +848,8 @@ Token1,	CLA
 				/ keybuf char. So stash the command char while
 				/ doing that.
 	TAD I 	src		/ Get keybuf char
-	AND 	(0177)		/ Mask parity 000 001 111 111
-	TAD 	(-141)		/ Bias it with negaitive ASCII a
+	AND 	(0177)		/ Remove parity sing mask 000 001 111 111
+	TAD 	(-141)		/ Bias it with negative ASCII "a"
 	SMA
 	TAD 	(-40)		/ Make it upper case
 	TAD 	[341]		/ Restore bias + set parity
@@ -859,13 +859,6 @@ Token1,	CLA
 	TAD 	tmp
 	SZA			
 	JMP	TokenF		/ No match of chars, go skip chars until the
-
-
-/	CMA			/ Now compare command char with keybuf char
-/	IAC
-/	TAD I 	src		
-/	SZA			
-/	JMP	TokenF		/ No match of chars, go skip chars until the
 				/   next command
 
 	ISZ	src		/ Match, src++. go try the next pair 
@@ -940,7 +933,7 @@ TokenM,	/ TOKEN MATCH
 
 	/
 	/ Reached the end of the input string, so terminate
-	/ the output with a NUL-token and return to calle
+	/ the output with a NUL-token and return to caller
 	/
 TokenD,	/ TOKEN DONE
 	CLA
@@ -1495,7 +1488,7 @@ ReadL0,
 
 	TAD	[-3]		/ Subtract delta to ENTER
 	SNA			/ Test if it was ENTER
-	JMP I 	ReadLi		/ If so, then return back to caller
+	JMP 	ReadE 		/ Yes, go add trailing space for tokenizer
 
 	TAD	[-162]		/ Subtract delta to DELETE
 	SNA			/ Test if it was DELETE
@@ -1525,6 +1518,11 @@ KeyERR,
 	TAD 	[7]
 	TLS
 	JMP	ReadL0
+
+ReadE, 	CLA			/ Add trailing space for tokenizer
+	TAD 	[40]
+	DCA I 	KBufP		
+	JMP I 	ReadLi		/ Return back to caller
 
 
 BACKSP,	CLA			/ Check if buffer is not empty
