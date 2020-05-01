@@ -181,12 +181,11 @@ PrompX,	CLA			/ Clear buffers
 	DCA 	iP1
 	JMS 	ZeroM
 
-	JMS 	TxtOut; Prmpt	/ Print Tiny Basic prompt
+	JMS 	TxtOut; Prmpt	/ Print TB8 prompt
+
 	JMS 	ReadLi		/ Collect one line of text from the user.
 				/ ReadLi returns with the text in KBuf[]
 				/ and the length of text in KBufL
-
-	JMS 	TxtOut; CRLF
 
 	JMS	Tokeni		/ Tokenize the string. It's hardcoded to
 				/ use KBuf[] and KBufL as the source and
@@ -233,7 +232,12 @@ JMPTB1,	dcFREE		/ tkFREE = -50
 	/ already. Then check if the new line is not empty and insert it into
 	/ the code base.
 	/
-NotDir,	JMS	FndLine		/ Locate line, return pointer in src
+NotDir,	CLA CLL
+	TAD I	(TokBuf)
+	DCA 	NumH
+	TAD I	(TokBuf+1)
+	DCA 	NumL
+	JMS	FndLine		/ Locate line, return pointer in src
 	SZL			/ L is 0 if exact line not found, so skip deleting
 	JMS	CodDel		/ Delete line pointed to by src
 	CLA			/ Now check if new line is empty
@@ -263,19 +267,29 @@ NotDir,	JMS	FndLine		/ Locate line, return pointer in src
 /]
 
 
+//       _          _       ___   ____    _____
+//    __| |   ___  | |     |_ _| / ___|  |_   _|
+//   / _` |  / __| | |      | |  \___ \    | |
+//  | (_| | | (__  | |___   | |   ___) |   | |
+//   \__,_|  \___| |_____| |___| |____/    |_|
+//
+// Direct Command LIST
+/[
+dcLIST,	JMS 	TxtOut; CRLF
+	JMS	List
+	JMP I	Prompt
+/]
+
 //       _          _____   ____    _____   _____
 //    __| |   ___  |  ___| |  _ \  | ____| | ____|
 //   / _` |  / __| | |_    | |_) | |  _|   |  _|
 //  | (_| | | (__  |  _|   |  _ <  | |___  | |___
 //   \__,_|  \___| |_|     |_| \_\ |_____| |_____|
 //
-//
-// Direct Command LIST
+// Direct Command FREE
 //
 /[
-dcFREE,	
-dcLIST,	JMS	List
-	JMP I	Prompt
+dcFREE,	JMP I	Prompt
 /]
 
 
@@ -294,63 +308,6 @@ dcNEW,	NL7777			/ Set first byte of code buffer to
 	JMP I	Prompt
 /]
 
-//       _          ____    _   _   _   _
-//    __| |   ___  |  _ \  | | | | | \ | |
-//   / _` |  / __| | |_) | | | | | |  \| |
-//  | (_| | | (__  |  _ <  | |_| | | |\  |
-//   \__,_|  \___| |_| \_\  \___/  |_| \_|
-//
-//
-// Direct Command RUN
-//
-/[
-dcRUN,	
-	TAD	(Code)
-	DCA 	src
-
-Runnin,	
-	ISZ	src	/ Skip lineno and length
-	ISZ 	src
-	ISZ 	src
-
-	CLA CLL
-	TAD I 	src
-	TAD	(tkOFS2+JMPTB2)
-	DCA 	JMPVE2
-	TAD I	JMPVE2
-	DCA 	JMPVE2
-	JMP I	JMPVE2
-JMPVE2,	NOP
-JMPTB2,
-	cEND		/ tkEND=	-35
-	cRETURN		/ tkRETU=	-34
-	cGOSUB		/ tkGOSU=	-33
-	cGOTO 		/ tkGOTO=	-32
-	cNEXT		/ tkNEXT=	-31
-	cFOR		/ tkFOR=	-30
-	cIFF 		/ tkIF=		-27
-	cPRINT		/ tkPRIQ=	-26
-	cPRINT		/ tkPRIN=	-25
-	cGET		/ tkGET=	-24
-	cINPUT 		/ tkINPU=	-23
-	cLET		/ tkLET=	-22
-	cCOLON		/ tkCOLO=	-21
-	cREM		/ tkREM=	-20
-/]
-
-
-/
-/
-/
-cRETURN,
-cGOSUB,
-cNEXT,
-cFOR,
-cIFF,
-cGET,
-cINPUT, 
-cCOLON,
-cREM,	JMP I	Prompt
 
 
 //          _____   _   _   ____
@@ -408,6 +365,67 @@ cGOTO,
 //					     | |_| | |__   _| | |_| | | |_| |
 //					      \___/     |_|    \___/   \___/
 
+
+
+//       _          ____    _   _   _   _
+//    __| |   ___  |  _ \  | | | | | \ | |
+//   / _` |  / __| | |_) | | | | | |  \| |
+//  | (_| | | (__  |  _ <  | |_| | | |\  |
+//   \__,_|  \___| |_| \_\  \___/  |_| \_|
+//
+//
+// Direct Command RUN
+//
+/[
+dcRUN,	
+	JMS 	TxtOut; CRLF
+
+	TAD	(Code)	/ Start execution at first line of code
+	DCA 	src
+
+Runnin,	
+	ISZ	src	/ Skip lineno and length
+	ISZ 	src
+	ISZ 	src
+
+	CLA CLL
+	TAD I 	src
+	TAD	(tkOFS2+JMPTB2)
+	DCA 	JMPVE2
+	TAD I	JMPVE2
+	DCA 	JMPVE2
+	JMP I	JMPVE2
+JMPVE2,	NOP
+JMPTB2,
+	cEND		/ tkEND=	-35
+	cRETURN		/ tkRETU=	-34
+	cGOSUB		/ tkGOSU=	-33
+	cGOTO 		/ tkGOTO=	-32
+	cNEXT		/ tkNEXT=	-31
+	cFOR		/ tkFOR=	-30
+	cIFF 		/ tkIF=		-27
+	cPRINT		/ tkPRIQ=	-26
+	cPRINT		/ tkPRIN=	-25
+	cGET		/ tkGET=	-24
+	cINPUT 		/ tkINPU=	-23
+	cLET		/ tkLET=	-22
+	cCOLON		/ tkCOLO=	-21
+	cREM		/ tkREM=	-20
+/]
+
+
+/
+/
+/
+cRETURN,
+cGOSUB,
+cNEXT,
+cFOR,
+cIFF,
+cGET,
+cINPUT, 
+cCOLON,
+cREM,	JMP I	Prompt
 
 
 
@@ -544,7 +562,7 @@ FndLin,	0
 	DCA	src
 
 FndLi0,	CLA
-	TAD	src;
+	TAD	src
 	DCA	tmp
 	TAD I 	tmp			/ Fetch Line No from code
 	SPA				/ If LineNoH is not negative we not at end
@@ -1310,16 +1328,16 @@ Compar, 0
 	ISZ 	Compar		/ Bump up return address
 
 /SUBTRA,
-		CLA CLL			/ not required if previous code always leaves AC==0
-		TAD  	Arg2H+1
-		CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
-		TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
-		DCA  	ResH+1
-		RAL			/ propagate "complemented" borrow
-		TAD  	Arg2H		/ add previous stage borrow before forming negative
-		CMA CML IAC		/ form 13-bit negative
-		TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
-		DCA  	ResH
+	CLA CLL			/ not required if previous code always leaves AC==0
+	TAD  	Arg2H+1
+	CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
+	TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
+	DCA  	ResH+1
+	RAL			/ propagate "complemented" borrow
+	TAD  	Arg2H		/ add previous stage borrow before forming negative
+	CMA CML IAC		/ form 13-bit negative
+	TAD  	Arg1H		/ generates 0 for borrow, 1 for no borrow
+	DCA  	ResH
 
 	CLA			/ After this ResH+1 is zero if both ResH
 	TAD 	ResH		/ and ResH+1 was zero. And ResH can be tested
@@ -1331,13 +1349,16 @@ Compar, 0
 	CMA
 	DCA	ResH+1
 
+	CLA CLL
 	TAD	CTYPE		/ Calculate inexed jump based on CTYPE
-	TAD 	[CompIx+12]
-	DCA	tmp
-	TAD I 	tmp
-	DCA	tmp
-	JMP I 	tmp
-CompIx,	CompLT			/  <   LESS THAN
+	TAD     (tkOFS3+JMPTB3)
+	DCA     JMPVE3
+	TAD I   JMPVE3
+	DCA     JMPVE3
+	JMP I   JMPVE3
+JMPVE3, NOP
+JMPTB3,
+  	CompLT			/  <   LESS THAN
 	CompLE			/  <=  LESS THAN OR EQUAL
 	CompNE			/  <>  NOT EQUAL
 	CompGT			/  >   GREATER THAN
@@ -2208,8 +2229,9 @@ tkNEW=	-51;	ASCII "NEW"	; tkNEW		/ Direct command
 tkFREE=	-52;	ASCII "FREE"	; tkFREE	/ Direct command
 	0					/ End-of-table marker
 
-tkOFS1=  52;					/ Direct cmd offset
-tkOFS2=  37;					/ Command offset
+tkOFS1=  52;					/ Direct cmds offset
+tkOFS2=  37;					/ Commands offset
+tkOFS3=  11;					/ Comparisons offset
 
 /]
 

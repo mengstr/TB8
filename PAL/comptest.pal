@@ -1,6 +1,7 @@
 *6000
 
 /[
+/[
 Tests,	CLA 
 	TAD 	(-1750)		/ Loop 1000*1000 times (-12=10* -144=100* -1750=1000*)
 	DCA 	cntmt1
@@ -10,22 +11,29 @@ MtesL1,
 MtesL2,	
 	//--------------------------------------------------
 	// SETUP RANDOM NUMBERS
-	JMS	RANDOM;	AND [6003]; DCA Num1
-	JMS	RANDOM;	AND [6003]; DCA Num1+1
-	JMS	RANDOM;	AND [6003]; DCA Num2
-	JMS	RANDOM;	AND [6003]; DCA Num2+1
+	JMS	RANDOM;	AND (6003); DCA Num1
+	JMS	RANDOM;	AND (6003); DCA Num1+1
+	JMS	RANDOM;	AND (6003); DCA Num2
+	JMS	RANDOM;	AND (6003); DCA Num2+1
 
-	JMS I	SDPRNT; Num1;
+	JMS I	OutInt; Num1;
 	JMS 	SpcOut
-	JMS I	SDPRNT; Num2;
+	JMS I	OutInt; Num2;
 	JMS 	SpcOut
 	//------------------------------------------------
-	CLA; TAD  (-5); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
-	CLA; TAD  (-6); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
-	CLA; TAD  (-7); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
-	CLA; TAD (-10); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
-	CLA; TAD (-11); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
-	CLA; TAD (-12); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
+/tkEQ= 	 -4;	ASCII "="	; tkEQ		/ Comparison
+/tkGTEQ= -5;	ASCII ">="	; tkGTEQ	/ Comparison
+/tkGT=	 -6;	ASCII ">"	; tkGT		/ Comparison
+/tkNE=	 -7;	ASCII "<>"	; tkNE		/ Comparison
+/tkLNEQ=-10;	ASCII "<="	; tkLNEQ	/ Comparison
+/tkLT=	-11;	ASCII "<"	; tkLT		/ Comparison
+	//------------------------------------------------
+	CLA; TAD (tkEQ);   JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
+	CLA; TAD (tkGTEQ); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
+	CLA; TAD (tkGT);   JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
+	CLA; TAD (tkNE);   JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
+	CLA; TAD (tkLNEQ); JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
+	CLA; TAD (tkLT);   JMS Compar; Num1; Num2; CLA; RAL; JMS DigOut
 	//----------------------------------------------
 	JMS TxtOut; CRLF
 
