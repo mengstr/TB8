@@ -308,7 +308,8 @@ dcRUN,
 	TAD	(Code)
 	DCA 	src
 
-Runnin,	ISZ	src	/ Skip lineno and length
+Runnin,	
+	ISZ	src	/ Skip lineno and length
 	ISZ 	src
 	ISZ 	src
 
@@ -343,7 +344,6 @@ JMPTB2,
 /
 cRETURN,
 cGOSUB,
-cGOTO,
 cNEXT,
 cFOR,
 cIFF,
@@ -364,6 +364,39 @@ cREM,	JMP I	Prompt
 //
 /[
 cEND,	JMP I 	Prompt	
+/]
+
+
+//           ____    ___    _____    ___
+//    ___   / ___|  / _ \  |_   _|  / _ \
+//   / __| | |  _  | | | |   | |   | | | |
+//  | (__  | |_| | | |_| |   | |   | |_| |
+//   \___|  \____|  \___/    |_|    \___/
+//
+// Currently only supports tkCONS
+//
+/[
+cGOTO,
+	CLA CLL
+
+	ISZ	src
+	TAD I 	src
+	// TODO check if tkCONS
+
+	CLA CLL
+	ISZ	src
+	TAD I 	src
+	DCA 	NumH
+
+	ISZ	src
+	TAD I 	src
+	DCA 	NumL
+
+	JMS	FndLin		/ Set src. L=1 if exact match
+	SZL 			/Skip if Zero Link
+	JMP 	Running
+	JMP 	Syntax
+
 /]
 
 
@@ -705,7 +738,7 @@ cPRIf0, NLM1		/ Turn off the NO-CRLF flag by setting it to -1
 
 cPRIf1,	ISZ	cPRIfl 	/ Set NO-CRLF flag and then fall into the regular 
 	NOP		/ printing function. This is called whenever a
-			/ tkSEMI is encountered. The NOP is eeeded here since 
+			/ tkSEMI is encountered. The NOP is needed here since 
 			/ we go from 7777 to 0
 
 cPRINT,
@@ -2041,9 +2074,10 @@ rseed1,		0001  		/ 36bit random(seed) word Low part
 //
 /[
 CODE,
+	0;1;14;tkPRIN;tkSTRI; 110;145;154;154;157;54;tkSTRI;tkSEMI;0
+	0;2;6;tkGOTO;tkCONS;0;1;0
 	0;12;22;tkPRIN;tkSTRI; 110;145;154;154;157;54;40;167;157;162;154;144;41;tkSTRI;0	/ 10 PRINT "Hello, world!"
 	0;15;10;tkLET;tkVAR;104;tkEQ;tkVAR;101;0						/ 13 LET D=A
-/	0;16;11;tkLET;tkVAR;104;tkEQ;tkCONS;0;1053;0						/ 14 LET D=555
 	0;16;11;tkLET;tkVAR;103;tkEQ;tkCONS;1;1147;0						/ 14 LET C=4711
 	0;24;5;tkPRIN;tkVAR;101;0								/ 20 PRINT A
 	0;25;5;tkPRIN;tkVAR;102;0								/ 21 PRINT B
