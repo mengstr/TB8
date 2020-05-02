@@ -650,7 +650,7 @@ cLET,
 	TAD 	(-101)
 	CLL RAL
 	TAD 	(AZvars)
-	DCA	dst
+	DCA	cLetDst
 
 	ISZ 	src
 	CLA CLL
@@ -660,57 +660,16 @@ cLET,
 	JMP 	cLetEr
 
 	ISZ 	src
-	CLA CLL
-	TAD I 	src		/ Check if token is Constant
-	TAD	[-tkCONS]
-	SkpNOZ			/ Skip if non-zero (not match) 	
-	JMP 	cLetCo
-	CLA CLL
-	TAD I 	src		/ Else check if token is Variable
-	TAD	[-tkVAR]
-	SkpZER			/ Skip if Zero (match)
-	JMP 	cLetEr
+	JMS	Expr
+cLetDst,0
 
-	/
-	/ Copy contents of variable into destination variable
-	/
-cLetVa,
-	ISZ 	src		/ Get source variable address
-	CLA CLL
-	TAD I 	src		
-	TAD 	(-101)
-	CLL RAL
-	TAD 	(AZvars)
-	DCA	tmp	/ Store address in tmp
-	TAD I 	tmp	/ Copy High byte
-	DCA I 	dst
-	ISZ 	tmp
-	ISZ 	dst
-	TAD I 	tmp	/ Copy Low byte
-	DCA I 	dst
-	ISZ 	src
-	JMP 	cLetEx
-
-	/
-	/ Copy constant value into destination variable
-	/
-cLetCo,
-	ISZ 	src	/ Copy High byte
-	CLA CLL
-	TAD I 	src
-	DCA I 	dst
-	ISZ 	dst
-	ISZ	src	/ Copy Low byte
-	CLA CLL
-	TAD I 	src
-	DCA I 	dst
-	ISZ 	src
 
 	/
 	/ Skip over the final NIL or the COLON on the line
 	/ and go back to process more tokens.
 	/
-cLetEx,	ISZ 	src		/ skip the NIL or COLON
+cLetEx,	
+	ISZ 	src		/ skip the NIL or COLON
 	JMP 	Running
 
 
@@ -796,29 +755,14 @@ cPRINs,	ISZ 	src		/ This will skip the leading "
 	JMS 	ChrOut		/ Call the character out for printing
 	JMP 	cPRINs		/ Now do next character
 
-	/
-	/ Print variable
-	/
-cPRINv,	ISZ 	src
-	CLA CLL
-	TAD I 	src
-	TAD 	(-101)
-	CLL RAL
-	TAD 	(AZvars)
-	DCA	.+2
-	JMS I	OutInt; 0	
-	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
 
 	/
-	/ Print constant
+	/ Print variable or constant
 	/
+cPRINv,
 cPRINc,
-	ISZ 	src
-	CLA
-	TAD 	src
-	DCA 	.+2
-	JMS I	OutInt; 0	
-	ISZ 	src		/ skip the bytes of the constant
+	JMS 	Expr;tmpH
+	JMS I	OutInt;tmpH
 	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
 
 	/
@@ -828,7 +772,7 @@ cPrEnd,	CLA			/ Is the CRLF supressed by the semicolon-flag?
 	TAD	cPRIfl
 	SkpGT0
 	JMS 	TxtOut; CRLF
-	ISZ 	src		/ skip the NIL or COLON
+/	ISZ 	src		/ skip the NIL or COLON
 	JMP 	Running
 
 /]
@@ -1205,6 +1149,140 @@ ListS1, CLA
 //					      / __/  | |_| | | |_| | | |_| |
 //					     |_____|  \___/   \___/   \___/
 
+//   _____
+//  | ____| __  __  _ __    _ __
+//  |  _|   \ \/ / | '_ \  | '__|
+//  | |___   >  <  | |_) | | |
+//  |_____| /_/\_\ | .__/  |_|
+//                 |_|
+//
+// Evaluates an expression made up of one or more vars/consts with
+// operands between them. The expression is simply parsed from left
+// to right with no precedence.
+// Parsing is started at 'src' and is terminated at <NIL> or tkCOLO
+//
+// JMS Expr
+//	<Destination address>
+//
+// Inputs:   none
+// Outputs:  double word to <Destination address>
+// Destroys: tmp, Arg1, Arg2
+//
+//
+
+/[
+Expr,	0
+	CLA CLL
+	TAD I	Expr		/ Get address of param
+	DCA 	exDst		/ Hold it in exDst until we need it
+	ISZ 	Expr		/ Bump up return address
+
+	JMS	GetVal; Arg1
+
+ExLoop,	CLA CLL
+	TAD I	src		/ Get next token
+	SkpNOZ			/ Skip if not reached end-of-line
+	JMP	ExDone
+
+	TAD	[-tkPLUS]
+	SkpNOZ			/ Skip if not Addition
+	JMP	ExAddi
+	IAC
+	SkpNOZ			/ Skip if not Subtract
+	JMP	ExSubt
+	IAC
+	SkpNOZ			/ Skip if not Multiply
+	JMP	ExMult
+	IAC
+	SkpNOZ			/ Skip if not Divide
+	JMP	ExDivi
+	JMP 	Syntax
+
+ExAddi,	ISZ	src
+	JMS	GetVal; Arg2
+	JMS 	Add		/ Arg1+Arg2 -> Res
+	CLA CLL
+	TAD 	ResH
+	DCA 	Arg1H
+	TAD 	ResL
+	DCA 	Arg1L
+	JMP	ExLoop
+
+ExSubt,	ISZ	src
+	JMS	GetVal; Arg2
+	JMS 	Sub		/ Arg1-Arg2 -> Res
+	CLA CLL
+	TAD 	ResH
+	DCA 	Arg1H
+	TAD 	ResL
+	DCA 	Arg1L
+	JMP	ExLoop
+
+ExMult,	ISZ	src
+	JMS	GetVal; Arg2
+	JMS 	Multip; Arg1; Arg2	/ Arg1*Arg2 -> A,B,C,D
+	CLA CLL
+	TAD 	ResH
+	DCA 	Arg1H
+	TAD 	ResL
+	DCA 	Arg1L
+	JMP	ExLoop
+
+ExDivi,	ISZ	src
+	JMS	GetVal; Arg2
+
+
+	CLA; DCA negg
+	CLA; TAD Arg1H	/ Check if negative dividend
+	SMA
+	JMP 	Mtes1
+	JMS 	Negate; Arg1H	/ Always positive
+	ISZ 	negg
+
+Mtes1,	CLA;TAD Arg2H	/ Check if positive divisor
+	SPA
+	JMP 	Mtes2
+	JMS 	Negate; Arg2H	/ Always negative
+	CLA; TAD negg; TAD [-1]; DCA negg
+
+Mtes2,	JMS	Divide; Arg1H; Arg2H
+/	SZL			/ L is 1 is error
+/	JMP 	Mtes4		
+	CLA; TAD DIVND4; DCA 	ResH+1
+	CLA; TAD DIVND3; DCA 	ResH
+	CLA; TAD negg
+	SZA
+	JMP 	Mtes3
+	JMS Negate; ResH
+Mtes3,
+
+	CLA CLL
+	TAD 	ResH
+	DCA 	Arg1H
+	TAD 	ResL
+	DCA 	Arg1L
+	JMP	ExLoop
+
+
+
+	/
+	/ The full expression is evaluated, copy the final reasult to
+	/ the requested destination and return to caller
+	/
+ExDone,	CLA CLL
+	TAD 	Arg1
+	DCA I 	ExDst
+	ISZ	ExDst
+	TAD 	Arg1+1
+	DCA I 	ExDst
+
+	JMP I	Expr
+ExDst,	0
+Negg,	0
+
+/]
+
+*2200
 //					    
 //					    
 //					      ____    ____     ___     ___
@@ -1213,6 +1291,84 @@ ListS1, CLA
 //					      / __/   / __/  | |_| | | |_| |
 //					     |_____| |_____|  \___/   \___/
 //					    
+//    ____          _    __     __          _
+//   / ___|   ___  | |_  \ \   / /   __ _  | |
+//  | |  _   / _ \ | __|  \ \ / /   / _` | | |
+//  | |_| | |  __/ | |_    \ V /   | (_| | | |
+//   \____|  \___|  \__|    \_/     \__,_| |_|
+//
+// Fetches the next value from the code at the current 'src'
+// location. The value can be either a variable or constant.
+// The value is put into the location specified by the parameter.
+//
+// JMS GetVal
+//	<Destination address>
+//
+// Inputs:   none
+// Outputs:  double word to <Destination address>
+// Destroys: tmp
+//
+/[
+GetVal,	0
+	CLA CLL
+	TAD I	GetVal          / Get address of param
+	DCA 	tmp		/ Hold it in tmp until we need it
+	ISZ 	GetVal		/ Bump up return address
+
+	CLA CLL			/ Check if the value is a constant or a variable
+	TAD I	src
+	ISZ 	src
+
+	IAC			/ tkVAR is -1, so after this AC should be 0 
+	SkpNOZ			/ Skip if not tkVar
+	JMP 	GVvar		/ Handle next token as a variable
+
+	IAC			/ tkCONS is -2, so after this AC should be 0
+	SkpZER			/ Skip if it is  tkCONS
+	JMP 	Syntax		/ We're out of options, so print error meg
+
+	/
+	/ Get the constant value
+	/
+GVcon,
+	CLA CLL
+	TAD I	src
+	DCA I 	tmp
+	ISZ 	src
+	ISZ 	tmp
+	TAD I	src
+	DCA I 	tmp
+	ISZ 	src
+	JMP I	GetVal
+
+	/
+	/ Get the value from a variable
+	/
+GVvar,
+	CLA CLL
+	TAD I 	src	/ Get the name of the variable (A-Z)
+	TAD 	(-101)	/ Offset it to 0-25
+	CLL RAL		/ Multiply by two for correct index into array
+	TAD 	(AZvars) / Offset into the array
+	DCA	GVsrc
+
+	CLA CLL
+	TAD I	GVsrc
+	DCA I 	tmp
+	ISZ 	GVsrc
+	ISZ 	tmp
+	TAD I	GVsrc
+	DCA I 	tmp
+
+	ISZ 	src
+	JMP I	GetVal
+GVsrc,	0
+/]
+
+
+
+
+
 //					      ____    _  _      ___     ___
 //					     |___ \  | || |    / _ \   / _ \
 //					       __) | | || |_  | | | | | | | |
@@ -1672,7 +1828,7 @@ Add,	0
 //          L=0 if underflow 
 /[
 Sub,	0
-		CLA CLL			/ not required if previous code always leaves AC==0
+		CLA CLL
 		TAD  	Arg2H+1
 		CLL CMA CML IAC 	/ form 13-bit negative with no previous borrow
 		TAD  	Arg1H+1		/ generates 0 for borrow, 1 for no borrow
@@ -1692,7 +1848,7 @@ Sub,	0
 //
 // BASED ON DEC-08-FMEA-LA 
 // DOUBLE PRECISION DIVIDE SUBROUTINE,
-// Stipped down from 48 bit Dividend to 24 bit
+// Stripped down from 48 bit Dividend to 24 bit
 //
 // CALLING SEQUENCE:
 //         JMS DIVIDE
@@ -1758,7 +1914,7 @@ DIV3,	TAD	DIVND2		/ SHIFT HIGH DIVIDEND
 DIV2,	TAD	DIVND4		/ ROTATE LOW ORDER
 	RAL			/ WORDS LEFT
 	DCA	DIVND4
-	TAD	DIVND3		/Q UTOIENT BITS
+	TAD	DIVND3		/QUTOIENT BITS
 	RAL
 	DCA	DIVND3		/ ENTER FROM C(L)
 	ISZ	DIVCNT		/ DONE 24?
@@ -1872,10 +2028,11 @@ ATOL0,	TAD I 	src		/ Get character
 // DIGITAL-8-13-F
 // SIGNED DOUBLE PRECISION MULTIPLY ROUTINE
 // CALLING SEQUENCE:
-//        JMS DMUL
-//        ADDRESS OF MULTIPLICAND(HIGH ORDER)
-//        ADDRESS OF MULTIPLIER(HIGH ORDER)
-//        RETURN HIGH TO LOW IN A,B,C,D
+//        JMS Multip
+//        	<ADDRESS OF MULTIPLICAND(HIGH ORDER)>
+//        	<ADDRESS OF MULTIPLIER(HIGH ORDER)>
+//        
+//  RETURNS HIGH TO LOW IN A,B,C,D
 /[
 Multip,	0
 	CLL CLA
@@ -2095,18 +2252,26 @@ rseed1,		0001  		/ 36bit random(seed) word Low part
 //
 /[
 CODE,
-	0;1;14;tkPRIN;tkSTRI; 110;145;154;154;157;54;tkSTRI;tkSEMI;0
-	0;2;6;tkGOTO;tkCONS;0;1;0
-	0;12;22;tkPRIN;tkSTRI; 110;145;154;154;157;54;40;167;157;162;154;144;41;tkSTRI;0	/ 10 PRINT "Hello, world!"
-	0;15;10;tkLET;tkVAR;104;tkEQ;tkVAR;101;0						/ 13 LET D=A
-	0;16;11;tkLET;tkVAR;103;tkEQ;tkCONS;1;1147;0						/ 14 LET C=4711
-	0;24;5;tkPRIN;tkVAR;101;0								/ 20 PRINT A
-	0;25;5;tkPRIN;tkVAR;102;0								/ 21 PRINT B
-	0;26;5;tkPRIN;tkVAR;103;0								/ 22 PRINT C
-	0;27;5;tkPRIN;tkVAR;104;0								/ 23 PRINT D
-	0;36;6;tkPRIN;tkCONS;36;1100;0								/ 30 PRINT 123456
-	0;50;3;tkEND;0										/ 40 END
+	0;12;16;tkPRIN;tkCONS;0;1;tkPLUS;tkCONS;0;2;tkPLUS;tkCONS;0;3;0	/ 10 PRINT 1+2+3
+	0;24;15;tkLET;tkVAR;101;tkEQ;tkCONS;0;13;tkPLUS;tkCONS;1;1134;0	/ 20 LET A=11+4700
+	0;36;11;tkLET;tkVAR;102;tkEQ;tkCONS;0;52;0			/ 30 LET B=42
+	0;50;10;tkPRIN;tkVAR;101;tkSEMI;tkVAR;102;0			/ 40 PRINT A;B
+	0;62;3;tkEND;0							/ 50 END
 	7777
+
+ /0000010 PRINT  0000001 +  0000002 +  0000003
+ /0000020 LET A =  0000011 +  0004700
+ /0000030 LET B =  0000042
+ /0000040 PRINT A ; B
+ /0000050 END
+
+/6000: 0000 0012 0016 7751 7776 0000 0001 7766 7776 0000 0002 7766 7776 0000 0003 0000
+/6020: 0000 0024 0015 7754 7777 0101 7774 7776 0000 0013 7766 7776 0001 1134 0000 
+/6037: 0000 0036 0011 7754 7777 0102 7774 7776 0000 0052 0000 
+/6052: 0000 0050 0010 7751 7777 0101 7760 7777 0102 0000 
+/6064: 0000 0062 0003 7741 0000 
+/6071: 7777
+
 
 //					       __     ____     ___     ___
 //					      / /_   |___ \   / _ \   / _ \
