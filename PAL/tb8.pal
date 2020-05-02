@@ -844,7 +844,7 @@ cPrEnd,	CLA			/ Is the CRLF supressed by the semicolon-flag?
 //
 /[
 Tokeni,	0
-	CLA
+	CLA CLL
 	TAD	[KBuf]
 	DCA	src
 	TAD 	[TokBuf]
@@ -891,11 +891,7 @@ Token1,	CLA
 				/ keybuf char. So stash the command char while
 				/ doing that.
 	TAD I 	src		/ Get keybuf char
-	AND 	(0177)		/ Remove parity sing mask 000 001 111 111
-	TAD 	(-141)		/ Bias it with negative ASCII "a"
-	SMA
-	TAD 	(-40)		/ Make it upper case
-	TAD 	[341]		/ Restore bias + set parity
+	JMS 	UCase
 
 	CMA			/ Now compare command char with keybuf char
 	IAC
@@ -973,7 +969,7 @@ Token6,	CLA CLL
 	TAD I	src
 	TAD	(-42)
 	SkpZER
-	JMP 	Token7
+	JMP 	Syntax
 	CLA CLL
 	TAD 	[tkSTRI]	/ Store string token in dst array
 	JMS 	AppDst
@@ -994,16 +990,22 @@ TknSE,	CLA CLL
 	JMP 	TokenL		/ Continue scanning for more tokens
 
 	/
-	/ Can't parse it, so syntax error it is
-	/
-Token7,	JMP Syntax
-
-	/
 	/ We matched a token, so store it in the dst array
 	/
-TokenM,	/ TOKEN MATCH
+TokenM,
+	DCA	tmp
+	TAD	tmp
 	JMS	AppDst		/ Store in dst array
-	JMP 	TokenL		/ Continue scanning for more tokens
+	TAD 	tmp
+	TAD	[-tkREM]	/ Test is token was a REM
+	skpZER		
+	JMP 	TokenL		/ No, just continue scanning for more tokens
+foo1,	TAD I 	src
+	SkpNOZ
+	JMP 	TokenD
+	JMS 	AppDst
+	ISZ 	src
+	JMP	foo1
 
 	/
 	/ Reached the end of the input string, so terminate
@@ -1014,7 +1016,7 @@ TokenD,	/ TOKEN DONE
 	JMS	AppDst
 	JMP I 	Tokeni
 
-srcHld,	0	
+srcHld,	0
 /]
 
 
@@ -1025,6 +1027,22 @@ srcHld,	0
 //					     | | | (_) | | |_| | | |_| |
 //					     |_|  \___/   \___/   \___/
 
+//   _   _    ____
+//  | | | |  / ___|   __ _   ___    ___
+//  | | | | | |      / _` | / __|  / _ \
+//  | |_| | | |___  | (_| | \__ \ |  __/
+//   \___/   \____|  \__,_| |___/  \___|
+//
+//
+/[
+UCase, 	0
+	AND 	(0177)		/ Remove parity using mask 000 001 111 111
+	TAD 	(-141)		/ Bias it with negative ASCII "a"
+	SMA
+	TAD 	(-40)		/ Make it upper case
+	TAD 	(341)		/ Restore bias + set parity
+	JMP I 	UCase
+/]
 
 //
 //      _                      ____          _
@@ -1152,6 +1170,10 @@ ListL2,	CLA
 	IAC
 	DCA	.+2
 	JMS 	TxtOut; 0
+	NOP
+	TAD 	(-7756)		/ Test for tkREM
+	SkpNOZ
+	JMP 	ListPl		/ If it was REM then print the rest of line as-is
 	JMP  	ListL1		/ Continue in current line
 
 ListCR,	JMS 	TxtOut; CRLF
@@ -1186,6 +1208,16 @@ ListS1, CLA
 	JMS 	ChrOut
 /	ISZ 	iP1
 	JMP  	ListL1		/ Continue in current line
+
+	/
+	/ Print rest of string as-is plain ascii
+	/
+ListPl,	JMS 	SpcOut
+ListP0,	TAD I 	iP1
+	SkpNOZ
+	JMP 	ListCR
+	JMS 	ChrOut
+	JMP 	ListP0
 /]
 
 *2000
@@ -2274,7 +2306,14 @@ rseed2,		0000  		/ 36bit random(seed) word Middle part
 rseed1,		0001  		/ 36bit random(seed) word Low part
 /]
 
-
+/Greet,	15; 12; "T; "B; "8; " ; "v; "0; ".; "0; "1; 
+Greet, 
+	15;12
+	ASCII "TB8 v0.1 [PDP-8 Tiny Basic Interpreter]"
+	15;12
+	Copyright (c) 2020 Mats Engstrom"
+	15;12
+	15;12;0
 
 
 *6000
@@ -2390,7 +2429,6 @@ AZvars,	1;1; 2;2; 3;3; ZBLOCK 56		/ The A-Z variables 26*2(dec) bytes
 /[
 CONSTS,
 
-Greet,	15; 12; "T; "B; "8; " ; "v; "0; ".; "0; "1; 
 CRLF,	15; 12; 0
 Prmpt,	15; 12; ">; 0
 SynErr,	15; 12; "S; "Y; "N; "T; "A; "X; 15; 12; 0
