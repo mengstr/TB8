@@ -1724,6 +1724,7 @@ CompaT,	CLL CML			/ Comparison true, return with L=1
 /[
 OutInX,	0
 	CLA CLL
+	DCA	noblan
 	TAD I 	OutInX		/PICK UP ADDRESS OF HIGH-ORDER WORD
 	DCA 	SDGET
 	TAD I 	SDGET		/PICK UP HIGH-ORER WORD
@@ -1769,11 +1770,25 @@ SDDO,	CLL			/DOUBLE PRECISION SUBTRACTION
 	JMP	SDDO		/GO BACK AND SUBTRACT AGAIN
 SDOUT, 	CLA
 	TAD	SDBOX		/PICK UP RESULTING DIGIT
+	SkpNOZ
+	JMP	SDfix
+Fix2,	ISZ 	noblan		/Set noblank flag since we printed a digit
 	JMS	DigOut		/TYPE IT OUT
+Fix1,	CLA
 	DCA	SDBOX		/INITIALIZE DIGIT TO "0"
 	ISZ	SDCNT		/HAVE WE TYPED "7" DIGITS
 	JMP	SDARND		/NO, DETERMINE NEXT DIGIT
 	JMP I	OutInX		/YES, SUBROUTINE DONE. RETURN
+
+SDfix,	CLA			/ We reach here when trying to print 0
+	TAD 	noblan		/ Are we still in blanking?
+	SkpNOZ 	
+	JMP 	fix1
+	CLA
+	TAD 	SDBOX
+	JMP 	fix2
+
+noblan,	0
 /]
 
 
@@ -2311,7 +2326,7 @@ Greet,
 	15;12
 	ASCII "TB8 v0.1 [PDP-8 Tiny Basic Interpreter]"
 	15;12
-	Copyright (c) 2020 Mats Engstrom"
+	ASCII "Copyright 2020 Mats Engstrom"
 	15;12
 	15;12;0
 
