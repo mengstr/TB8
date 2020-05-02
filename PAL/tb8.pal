@@ -337,17 +337,18 @@ cGOTO,
 	CLA CLL
 
 	ISZ	src
-	TAD I 	src
+/	TAD I 	src
 	// TODO check if tkCONS
 
-	CLA CLL
-	ISZ	src
-	TAD I 	src
-	DCA 	NumH
-
-	ISZ	src
-	TAD I 	src
-	DCA 	NumL
+/	CLA CLL
+/	ISZ	src
+/	TAD I 	src
+/	DCA 	NumH
+/
+/	ISZ	src
+/	TAD I 	src
+/	DCA 	NumL
+	JMS 	Expr; NumH
 
 	JMS	FndLin		/ Set src. L=1 if exact match
 	SZL 			/Skip if Zero Link
