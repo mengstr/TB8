@@ -330,31 +330,17 @@ cEND,	JMP I 	Prompt
 //  | (__  | |_| | | |_| |   | |   | |_| |
 //   \___|  \____|  \___/    |_|    \___/
 //
-// Currently only supports tkCONS
 //
 /[
 cGOTO,
 	CLA CLL
 
 	ISZ	src
-/	TAD I 	src
-	// TODO check if tkCONS
-
-/	CLA CLL
-/	ISZ	src
-/	TAD I 	src
-/	DCA 	NumH
-/
-/	ISZ	src
-/	TAD I 	src
-/	DCA 	NumL
 	JMS 	Expr; NumH
-
 	JMS	FndLin		/ Set src. L=1 if exact match
-	SZL 			/Skip if Zero Link
+	SZL 			/ Skip if Zero Link
 	JMP 	Running
 	JMP 	Syntax
-
 /]
 
 
@@ -385,11 +371,17 @@ dcRUN,
 	DCA 	src
 
 Runnin,	
-	ISZ	src	/ Skip lineno and length
+	CLA CLL
+	TAD I 	src	/ Save current line no
+	DCA	lineH
 	ISZ 	src
+	TAD I 	src
+	DCA	lineL
 	ISZ 	src
 
-	CLA CLL
+	ISZ 	src	/ Skip length
+
+Contin,	CLA CLL
 	TAD I 	src
 	TAD	(tkOFS2+JMPTB2)
 	DCA 	JMPVE2
@@ -422,11 +414,10 @@ cRETURN,
 cGOSUB,
 cNEXT,
 cFOR,
-cIFF,
 cGET,
 cINPUT, 
 cCOLON,
-cREM,	JMP I	Prompt
+JMP I	Prompt
 
 
 
@@ -533,6 +524,21 @@ CodCp0,
 /]
 
 
+/[
+cREM,	
+	// TODO Make a real 24-bit increment here
+	ISZ 	lineL
+	CLA CLL
+	TAD 	LineH
+	DCA	NumH
+	TAD 	LineL
+	DCA 	NumL
+	JMS 	FndLin
+	JMP 	Running
+
+/]
+
+
 
 *600
 //					       ___     __      ___     ___
@@ -621,20 +627,65 @@ FndLiE,	CLL CML			/ Found exact, return with L=1
 //					     | | | |_| | | |_| | | |_| |
 //					     |_|  \___/   \___/   \___/
 
+
+//          ___   _____
+//    ___  |_ _| |  ___|
+//   / __|  | |  | |_
+//  | (__   | |  |  _|
+//   \___| |___| |_|
+//
+// IF <expr1> <cond> <expr2> THEN <code>
+/[
+
+cIFF,	ISZ 	src
+	JMS 	Expr; left	/ Get expression #11
+
+	CLA CLL			/ Get the condition
+	TAD I	src
+	ISZ	src
+	DCA	IFcomp		/ Store it for later 
+	// TODO Verify that we have a valid comparison token here
+
+	JMS 	Expr; right	/ Get expression #2
+
+	CLA CLL			/ Get the THEN 
+	TAD I	src
+	ISZ	src
+	// TODO Verify that we tkTHEN here
+
+	CLA CLL			/ Compare the expressions using stored
+	TAD 	IFcomp		/ comparison mode
+	JMS	Compar; Left; Right
+
+	SZL			/ Skip on L=0 (failed comparison)
+	JMP 	Contin		/ If successful comparison continue parsing the line]
+
+	/
+	/ The comparison failed, so we need to find the start of the next line
+	/ and start running from there. The current line is stored in lineH/LineL
+	/
+	// TODO Make a real 24-bit increment here
+	ISZ 	lineL
+	CLA CLL
+	TAD 	LineH
+	DCA	NumH
+	TAD 	LineL
+	DCA 	NumL
+	JMS 	FndLin
+	JMP 	Running
+
+IFcomp,	0
+left,	0;0
+right,	0;0
+/]
+
+
 //          _       _____   _____
 //    ___  | |     | ____| |_   _|
 //   / __| | |     |  _|     | |
 //  | (__  | |___  | |___    | |
 //   \___| |_____| |_____|   |_|
 //
-// 13 LET D=A
-// 0;15;10;tkLET;tkVAR;104;tkEQ;tkVAR;101;0
-// 06024:    0000 0015 0010 7754 7777 0104 7774 7777 0101 0000
-//
-// 14 LET C=4711
-// 0;16;11;tkLET;tkVAR;103;tkEQ;tkCONS;1;1147;0
-// 06036:    0000 0016 0011 7754 7777 0103 7774 7776 0001 1147 0000
-// 
 //
 /[
 cLET,
@@ -643,7 +694,7 @@ cLET,
 	TAD I 	src		/ Check if token is Variable
 	TAD	[-tkVAR]
 	SkpZER 			/ Skip if Zero (match)
-	JMP 	cLetEr
+	JMP  	Syntax
 
 	ISZ 	src
 	CLA CLL
@@ -658,7 +709,7 @@ cLET,
 	TAD I 	src		/ Check if token is equal sign
 	TAD	[-tkEQ]
 	SkpZER			/ Skip if Zero (match)
-	JMP 	cLetEr
+	JMP  	Syntax
 
 	ISZ 	src
 	JMS	Expr
@@ -673,13 +724,6 @@ cLetEx,
 	ISZ 	src		/ skip the NIL or COLON
 	JMP 	Running
 
-
-	/
-	/ We encountered a syntax error on the line. The Run is aborted by
-	/ going back to the prompt after printing the error message
-	/	
-cLetEr,
-	JMP  	Syntax
 /]
 
 
@@ -751,10 +795,12 @@ cPRINs,	ISZ 	src		/ This will skip the leading "
 	TAD I 	src
 	TAD 	[-tkSTRI]
 	SNA			/ at end of message
-	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
+	JMP 	foo
 	TAD	[tkSTRI]
 	JMS 	ChrOut		/ Call the character out for printing
 	JMP 	cPRINs		/ Now do next character
+foo,	ISZ	src
+	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
 
 
 	/
@@ -773,7 +819,6 @@ cPrEnd,	CLA			/ Is the CRLF supressed by the semicolon-flag?
 	TAD	cPRIfl
 	SkpGT0
 	JMS 	TxtOut; CRLF
-/	ISZ 	src		/ skip the NIL or COLON
 	JMP 	Running
 
 /]
@@ -1197,7 +1242,8 @@ ExLoop,	CLA CLL
 	IAC
 	SkpNOZ			/ Skip if not Divide
 	JMP	ExDivi
-	JMP 	Syntax
+/	JMP 	Syntax
+	JMP 	ExDone
 
 ExAddi,	ISZ	src
 	JMS	GetVal; Arg2
@@ -2374,7 +2420,8 @@ tkLET=	-24;	ASCII "LET"	; tkLET		/ Command
 tkINPU=	-25;	ASCII "INPUT"	; tkINPU	/ Command
 tkGET=	-26;	ASCII "GET"	; tkGET		/ Command 
 tkPRIN=	-27;	ASCII "PRINT"	; tkPRIN	/ Command
-tkPRIQ=	-30;	ASCII "?"	; tkPRIQ	/ Command
+		ASCII "?"	; tkPRIN	/ Command
+tkPRIQ=-30;	ASCII "XYZZY"	; tkPRIQ	/ Command
 tkIF=	-31;	ASCII "IF"	; tkIF		/ Command
 tkFOR=	-32;	ASCII "FOR"	; tkFOR		/ Command
 tkNEXT=	-33;	ASCII "NEXT"	; tkNEXT	/ Command
