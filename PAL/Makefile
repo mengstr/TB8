@@ -17,7 +17,7 @@ tb8.bin: tb8.pal
 	$(REPORT) < tb8.lst | tee tb8.rpt
 
 #
-test: tb8.bin
+run: tb8.bin
 	(sleep 1; cat tb8.test1.cmd | nc -u 127.0.0.1 2288) & ($(EMU) tb8.bin.core; killall nc)
 
 #
