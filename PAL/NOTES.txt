@@ -396,3 +396,24 @@ new
 !
 }
 ---------------------------------------------------------
+
+
+new
+free
+10 print "Input first number:"
+free
+20 input A
+free
+30 print "Input second number:"
+free
+40 input B
+free
+50 if A = B then print "The numbers are the same"
+free
+60 if A = B then print "The first number is largest"
+free
+70 if A = B then print "The second number is largest"
+free
+80 end
+free
+list

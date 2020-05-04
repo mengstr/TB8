@@ -438,7 +438,6 @@ cGOSUB,
 cNEXT,
 cFOR,
 cGET,
-cINPUT, 
 cCOLON,
 JMP I	Prompt
 
@@ -715,24 +714,22 @@ cLET,
 	ISZ 	src
 	CLA CLL
 	TAD I 	src		/ Check if token is Variable
-	TAD	[-tkVAR]
-	SkpZER 			/ Skip if Zero (match)
-	JMP  	Syntax
+	JMS 	CkRang; tkVAR; tkVAR / Check if token is Variable
 
 	ISZ 	src
 	CLA CLL
 	TAD I 	src		/ Get destination variable address
-	TAD 	(-101)
+	JMS 	UCase
+	TAD 	(-301)		/ Ucase sets parity, so subtract A plus parity
+	JMS 	CkRang; 0; 31	/ Verify A-Z
 	CLL RAL
 	TAD 	(AZvars)
 	DCA	cLetDst
 
 	ISZ 	src
 	CLA CLL
-	TAD I 	src		/ Check if token is equal sign
-	TAD	[-tkEQ]
-	SkpZER			/ Skip if Zero (match)
-	JMP  	Syntax
+	TAD I 	src
+	JMS 	CkRang; tkEQ; tkEQ / Check if token is "="
 
 	ISZ 	src
 	JMS	Expr
@@ -747,6 +744,61 @@ cLetEx,
 	ISZ 	src		/ skip the NIL or COLON
 	JMP 	Running
 
+/]
+
+
+//          ___   _   _   ____    _   _   _____
+//    ___  |_ _| | \ | | |  _ \  | | | | |_   _|
+//   / __|  | |  |  \| | | |_) | | | | |   | |
+//  | (__   | |  | |\  | |  __/  | |_| |   | |
+//   \___| |___| |_| \_| |_|      \___/    |_|
+//
+/[
+cINPUT, 
+	ISZ 	src
+	CLA CLL
+	TAD I 	src		/ Check if token is Variable
+	JMS 	CkRang; tkVAR; tkVAR / Check if token is Variable
+
+	ISZ 	src
+	CLA CLL
+	TAD I 	src		/ Get destination variable address
+	JMS 	UCase
+	TAD 	(-301)		/ Ucase sets parity, so subtract A plus parity
+	JMS 	CkRang; 0; 31	/ Verify A-Z
+	CLL RAL
+	TAD 	(AZvars)
+	DCA	cInpDst
+	ISZ 	src
+
+	TAD 	src		/ Save src as it's getting destroyed
+	DCA 	cINPhl		/ by ReadLi
+
+	JMS 	ReadLi		/ Collect one line of text from the user.
+				/ ReadLi returns with the text in KBuf[]
+				/ and the length of text in KBufL
+
+	CLA CLL
+	TAD	[KBuf]
+	DCA	src
+	JMS 	SkipSp		/ Skip spaces
+	JMS	ATOL		/ Reads from src, stores in numH,numL
+
+	CLA
+	TAD	numH		/ Get high part of line number
+	DCA I 	cInpDst
+	ISZ 	cInpDst
+	TAD	numL		/ Get low part of line number
+	DCA I 	cInpDst
+
+	TAD 	cINPhl		/ Restored clobbered src
+	DCA 	src
+
+	ISZ 	src
+	JMP	Running
+
+cINPhl,	0
+cINPdst,0
 /]
 
 
@@ -952,7 +1004,7 @@ Token4,	CLA CLL
 	TAD 	[-101]		/ Subtract ASCII A
 	SPA
 	JMP	Token5		/ Not A..Z, go check if it's a number
-	TAD 	[-31]		/ Check if character is <= than Z
+	TAD 	[-32]		/ Check if character is <= than Z
 	SMA
 	JMP	Token5		/ Not A..Z, go check if it's a number
 	CLA CLL
