@@ -1,3 +1,24 @@
+/	SNL 		Skip if Nonzero Link
+/ SZL     Skip if Zero Link
+
+/	SMA 		Skip if Minus Accumulator.    Skip on AC < 0
+/	SZA 		Skip if Zero Accumulator.     Skip on AC = 0
+/	SPA 		Skip if Positive Accumulator. Skip on AC >= 0
+/	SNA 		Skip if Nonzero Accumulator.  Skip on AC <> 0
+
+/ SMA SZA		Skip if Less than or Equal to Zero
+/	SPA SNA 	Skip if Greater than Zero
+/	SZA SNL    	Skip on AC = 0 or L <> 0
+/	SNA SZL    	Skip on AC <> 0 and L = 0
+/	SMA SNL    	Skip on AC < 0 or L <> 0
+/	SPA SZL    	Skip on AC >= 0 and L = 0
+/	SMA SZA    	Skip on AC <= 0
+/	SPA SNA    	Skip on AC > 0
+/	SMA SZA SNL	Skip on AC <= 0 or L <> 0
+/	SPA SNA SZL	Skip on AC > 0 and L=0
+
+
+
 In: numH, numL
 Out L, src
 
@@ -64,25 +85,6 @@ FndLin	   src tmp tmpH tmpL
 /
 / A 24 bit signed integet is +/- 8 388 607
 /
-/	SMA 		Skip if Minus Accumulator.    Skip on AC < 0
-/	SZA 		Skip if Zero Accumulator.     Skip on AC = 0
-/	SNL 		Skip if Nonzero Link
-/	SPA 		Skip if Positive Accumulator. Skip on AC >= 0
-/	SNA 		Skip if Nonzero Accumulator.  Skip on AC <> 0
-/	
-
-
-
-/   SMA SZA		Skip if Less than or Equal to Zero
-/	SPA SNA 	Skip if Greater than Zero
-/	SZA SNL    	Skip on AC = 0 or L <> 0
-/	SNA SZL    	Skip on AC <> 0 and L = 0
-/	SMA SNL    	Skip on AC < 0 or L <> 0
-/	SPA SZL    	Skip on AC >= 0 and L = 0
-/	SMA SZA    	Skip on AC <= 0
-/	SPA SNA    	Skip on AC > 0
-/	SMA SZA SNL	Skip on AC <= 0 or L <> 0
-/	SPA SNA SZL	Skip on AC > 0 and L=0
 
 
 //					    
@@ -253,7 +255,7 @@ FndLin	   src tmp tmpH tmpL
 /	NEG - NEG	-1 - -1=  0    -1 - -128=  127   -128 - -1= -127   -128 -  -128=  0
 /	NEG - POS	-1 -  1=- 2    -1 -  127= -128   -128 -  1= -129   -128 -   127= -255
 /	POS - NEG	 1 - -1=  2     1 - -128=  129 	  127 - -1=  128    127 -  -128=  255
-/ 	POS - POS	 1 -  1=  0     1 -  127= -126	  127 -  1=  126    127 -   127=  0
+/ POS - POS	 1 -  1=  0     1 -  127= -126	  127 -  1=  126    127 -   127=  0
 /       =========       ===========    ===============   ===============   ==================
 /
 /
@@ -305,3 +307,92 @@ FndLin	   src tmp tmpH tmpL
 
 
 /
+
+
+NEW
+10 LET A=50
+20 LET B=20
+30 LET C=A+B
+31 LET D=A-B
+32 LET E=A*B
+33 LET F=E/3
+50 PRINT A
+51 PRINT B
+52 PRINT C
+53 PRINT D
+54 PRINT E
+55 PRINT F
+60 END
+
+
+
+NEW
+10 LET A=110
+20 GOTO A
+30 PRINT 30
+31 END
+100 PRINT 100
+101 END
+110 PRINT 110
+111 END
+120 PRINT 120
+121 END
+
+new
+10 let N = 1
+20 ? "Hello world #"; N
+30 let N = N + 1
+40 if N > 5 then goto 100
+50 goto 20
+100 ? "Bye world..."
+110 end
+4 rem
+5 rem Hello World program
+6 rem
+
+
+NEW
+10 PRINT A
+20 PRINT B
+30 PRINT "AA"
+40 PRINT "BB"
+50 END
+
+
+NEW
+10 LET A = 0
+20 PRINT A;
+30 LET A = A + 1
+40 IF A < 10 THEN GOTO 20
+50 END
+
+-------------------------------------------------------
+
+new
+10 LET A=10
+20 LET B=11
+30 IF A > B THEN PRINT ">"
+40 IF A < B THEN PRINT "<"
+50 IF A = B THEN PRINT "="
+60 IF A <> B THEN PRINT "!"
+70 IF A >= B THEN PRINT "}"
+80 IF A <= B THEN PRINT "{"
+90 END
+
+>run
+<
+!
+{
+
+>20 LET B=10
+>run
+=
+}
+{
+
+>20 LET B=9
+>run
+>
+!
+}
+---------------------------------------------------------

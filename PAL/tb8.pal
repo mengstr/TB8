@@ -175,6 +175,8 @@ Prompt, PrompX
 //                                     |_|
 //
 PrompX,	CLA			/ Clear buffers
+	DCA	lineH
+	DCA	lineL
 	TAD 	[-10-120]
 	DCA 	cnt
 	TAD 	[TokBuf-1]
@@ -205,6 +207,7 @@ PrompX,	CLA			/ Clear buffers
 	TAD I 	iP1		/ Is LineNo Low zero?
 	SZA
 	JMP 	NotDir
+
 	/
 	/ No line number given, so this is a direct command.
 	/ Currently only RUN, LIST, NEW and FREE are accepted as
@@ -212,19 +215,24 @@ PrompX,	CLA			/ Clear buffers
 	/
 	ISZ 	iP1		/ Skip the length
 	TAD I 	iP1		/ Retrieve the command
-	SkpNOZ			/ Empty line?
-	JMP I 	Prompt
+	SkpNOZ			/ If just an empty line then 
+	JMP I 	Prompt		/   go prompt again
+	
+	/ Verify that the command is within the range of direct commands. If 
+	/ outside the allowed range the CkRang will print error and abort
+	JMS	CkRang; tkFREE; tkRUN
 
 	TAD	[tkOFS1+JMPTB1]
 	DCA 	JMPVE1
 	TAD I	JMPVE1
 	DCA 	JMPVE1
 	JMP I	JMPVE1
+
 JMPVE1,	NOP
-JMPTB1,	dcFREE		/ tkFREE = -50
-	dcNEW		/ tkNEW  = -47
-	dcLIST		/ tkLIST = -46
-	dcRUN		/ tkRUN  = -45
+JMPTB1,	dcFREE		/ tkFREE = -50 7730
+	dcNEW		/ tkNEW  = -47 7731
+	dcLIST		/ tkLIST = -46 7732
+	dcRUN		/ tkRUN  = -45 7733
 
 
 	/
@@ -642,16 +650,16 @@ cIFF,	ISZ 	src
 
 	CLA CLL			/ Get the condition
 	TAD I	src
+	JMS 	CkRang; tkLT; tkEQ / Verify valid comparison token
 	ISZ	src
 	DCA	IFcomp		/ Store it for later 
-	// TODO Verify that we have a valid comparison token here
 
 	JMS 	Expr; right	/ Get expression #2
 
 	CLA CLL			/ Get the THEN 
 	TAD I	src
+	JMS	CkRang; tkTHEN; tkTHEN / Verify THEN token
 	ISZ	src
-	// TODO Verify that we tkTHEN here
 
 	CLA CLL			/ Compare the expressions using stored
 	TAD 	IFcomp		/ comparison mode
@@ -2103,8 +2111,8 @@ ATOL0,	TAD I 	src		/ Get character
 	TAD 	numH
 	DCA 	numH
 	JMP 	ATOL0
-
 /]
+
 
 
 *5400
@@ -2251,6 +2259,7 @@ MP4,	0		/UNSIGNED MULTIPLY
 	JMP I	MP4		/EXIT
 /]
 
+
 *5600
 //					      ____     __      ___     ___
 //					     | ___|   / /_    / _ \   / _ \
@@ -2324,13 +2333,59 @@ rseed2,		0000  		/ 36bit random(seed) word Middle part
 rseed1,		0001  		/ 36bit random(seed) word Low part
 /]
 
-/Greet,	15; 12; "T; "B; "8; " ; "v; "0; ".; "0; "1; 
+//    ____   _      ____
+//   / ___| | | __ |  _ \    __ _   _ __     __ _
+//  | |     | |/ / | |_) |  / _` | | '_ \   / _` |
+//  | |___  |   <  |  _ <  | (_| | | | | | | (_| |
+//   \____| |_|\_\ |_| \_\  \__,_| |_| |_|  \__, |
+//                                          |___/
+//
+// Check that AC is within (inclusive) the specified bounds specified with
+// two parameters following the call.
+//
+//  JMS ChRang
+//      <lower bound value>
+//      <upper bound value>
+//
+// Destroys tmp
+//
+/[
+
+CkRang, 0
+	DCA 	tmp		/ Save number to check
+
+	/
+	/ Check lower bound
+	/
+	CLA CLL
+	TAD I	CkRang		/ Get lower bound value
+	CLL
+	CIA
+	TAD	tmp
+	SNL
+	JMP 	Syntax
+	ISZ 	CkRang		/ Bump return address
+
+	/
+	/ Check upper bound
+	/
+	CLA CLL
+	TAD	tmp
+	CIA
+	TAD I	CkRang		/ Get upper bound value
+	SNL
+	JMP 	Syntax
+	ISZ 	CkRang		/ Bump return address
+
+	CLA CLL			/ Restore original AC/value-to-check
+	TAD 	tmp
+	JMP I	CkRang	
+/]
+
+
 Greet, 
 	15;12
 	ASCII "TB8 v0.1 [PDP-8 Tiny Basic Interpreter]"
-	15;12
-	ASCII "Copyright 2020 Mats Engstrom"
-	15;12
 	15;12;0
 
 
@@ -2363,18 +2418,6 @@ CODE,
 	0;62;3;tkEND;0							/ 50 END
 	7777
 
- /0000010 PRINT  0000001 +  0000002 +  0000003
- /0000020 LET A =  0000011 +  0004700
- /0000030 LET B =  0000042
- /0000040 PRINT A ; B
- /0000050 END
-
-/6000: 0000 0012 0016 7751 7776 0000 0001 7766 7776 0000 0002 7766 7776 0000 0003 0000
-/6020: 0000 0024 0015 7754 7777 0101 7774 7776 0000 0013 7766 7776 0001 1134 0000 
-/6037: 0000 0036 0011 7754 7777 0102 7774 7776 0000 0052 0000 
-/6052: 0000 0050 0010 7751 7777 0101 7760 7777 0102 0000 
-/6064: 0000 0062 0003 7741 0000 
-/6071: 7777
 
 
 //					       __     ____     ___     ___
@@ -2449,7 +2492,7 @@ CONSTS,
 
 CRLF,	15; 12; 0
 Prmpt,	15; 12; ">; 0
-SynErr,	15; 12; "S; "Y; "N; "T; "A; "X; 15; 12; 0
+SynErr,	15; 12; "E; "R; "R; "@; 0
 BsSpBs,	10; 40; 10; 0
 
 CmdTxt,
@@ -2635,7 +2678,10 @@ GetKey,	0
 //           |___/
 /[
 Syntax,	JMS 	TxtOut; SynErr
+	JMS I	OutInt; lineH
+	JMS	TxtOut; CRLF
 	JMP I	Prompt
+
 /]
 
 
