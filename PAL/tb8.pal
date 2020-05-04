@@ -357,7 +357,6 @@ cEND,	JMP I 	Prompt
 //
 /[
 cGOTO,	CLA CLL
-	ISZ	src
 	JMS 	Expr; NumH
 	JMS	FndLin		/ Set src. L=1 if exact match
 	SZL 			/ Skip if Zero Link
@@ -398,7 +397,7 @@ Runnin,	CLA CLL
 	DCA	lineL
 	ISZ 	src
 
-	ISZ 	src	/ Skip the length byte
+	ISZ 	src	/ Advance past the length byte
 
 Contin,	CLA CLL
 	TAD I 	src
@@ -406,6 +405,7 @@ Contin,	CLA CLL
 	DCA 	JMPVE2
 	TAD I	JMPVE2
 	DCA 	JMPVE2
+	ISZ 	src	/ Advance past the command token
 	JMP I	JMPVE2
 JMPVE2,	NOP
 JMPTB2,
@@ -541,17 +541,22 @@ CodCp0,
 	JMP I	CodCpy
 /]
 
-
+//          ____    _____   __  __
+//    ___  |  _ \  | ____| |  \/  |
+//   / __| | |_) | |  _|   | |\/| |
+//  | (__  |  _ <  | |___  | |  | |
+//   \___| |_| \_\ |_____| |_|  |_|
+//
+// Skip the rest of the line
+//
 /[
-cREM,	
-	// TODO Make a real 24-bit increment here
-	ISZ 	lineL
-	CLA CLL
+cREM,	CLA IAC CLL		/ Take the current line number + 1 
+	TAD 	LineL	
+	DCA 	NumL	
+	RAL
 	TAD 	LineH
 	DCA	NumH
-	TAD 	LineL
-	DCA 	NumL
-	JMS 	FndLin
+	JMS 	FndLin		/ and then search for that line number.
 	JMP 	Running
 
 /]
@@ -655,8 +660,7 @@ FndLiE,	CLL CML			/ Found exact, return with L=1
 // IF <expr1> <cond> <expr2> THEN <code>
 /[
 
-cIFF,	ISZ 	src
-	JMS 	Expr; left	/ Get expression #11
+cIFF,	JMS 	Expr; left	/ Get expression #11
 
 	CLA CLL			/ Get the condition
 	TAD I	src
@@ -680,17 +684,10 @@ cIFF,	ISZ 	src
 
 	/
 	/ The comparison failed, so we need to find the start of the next line
-	/ and start running from there. The current line is stored in lineH/LineL
+	/ and start running from there.  This is just what the REM command is doing
+	/ so we can simply jump to the the REM command to do this.
 	/
-	// TODO Make a real 24-bit increment here
-	ISZ 	lineL
-	CLA CLL
-	TAD 	LineH
-	DCA	NumH
-	TAD 	LineL
-	DCA 	NumL
-	JMS 	FndLin
-	JMP 	Running
+	JMP 	cREM
 
 IFcomp,	0
 left,	0;0
@@ -706,9 +703,7 @@ right,	0;0
 //
 //
 /[
-cLET,
-	ISZ 	src
-	CLA CLL
+cLET,	CLA CLL
 	TAD I 	src		/ Check if token is Variable
 	JMS 	CkRang; tkVAR; tkVAR / Check if token is Variable
 
@@ -750,9 +745,7 @@ cLetEx,
 //   \___| |___| |_| \_| |_|      \___/    |_|
 //
 /[
-cINPUT, 
-	ISZ 	src
-	CLA CLL
+cINPUT, CLA CLL
 	TAD I 	src		/ Check if token is Variable
 	JMS 	CkRang; tkVAR; tkVAR / Check if token is Variable
 
@@ -834,9 +827,7 @@ cPRIf1,	ISZ	cPRIfl 	/ Set NO-CRLF flag and then fall into the regular
 			/ tkSEMI is encountered. The NOP is needed here since 
 			/ we go from 7777 to 0
 
-cPRINT,
-	ISZ	src
-	CLA CLL
+cPRINT,	CLA CLL
 	TAD I 	src
 	SkpNOZ
 	JMP 	cPrEnd
