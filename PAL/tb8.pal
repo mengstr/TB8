@@ -56,9 +56,9 @@ IRQ,	0			/ Placeholder for future IRQ handler
 Key,	.-.			/ Last read key
 KBufL,	.-.			/ Current length of string in KBuf
 
-tmp,;tmp1,	.-.			/ Generic temporary variable
-tmp2,;A,;tmpH,	.-.			/ Generic temporary variable
-tmp3,;B,;tmpL,	.-.			/ Generic temporary variable
+tmp,;tmp1,	.-.		/ Generic temporary variable
+tmp2,;A,;tmpH,	.-.		/ Generic temporary variable
+tmp3,;B,;tmpL,	.-.		/ Generic temporary variable
 
 *10
 PrintP,	.-.			/ Pointer to string to be printed
@@ -177,7 +177,7 @@ Prompt, PrompX
 PrompX,	CLA			/ Clear buffers
 	DCA	lineH
 	DCA	lineL
-	TAD 	[-10-120]
+	TAD 	[-10-120]	// TODO Move this into ReadLi
 	DCA 	cnt
 	TAD 	[TokBuf-1]
 	DCA 	iP1
@@ -218,22 +218,23 @@ PrompX,	CLA			/ Clear buffers
 	SkpNOZ			/ If just an empty line then 
 	JMP I 	Prompt		/   go prompt again
 	
+	/
 	/ Verify that the command is within the range of direct commands. If 
 	/ outside the allowed range the CkRang will print error and abort
+	/
 	JMS	CkRang; tkFREE; tkRUN
 
-	TAD	[tkOFS1+JMPTB1]
-	DCA 	JMPVE1
+	TAD	[tkOFS1+JMPTB1]	/ Goto to the correct direct command using
+	DCA 	JMPVE1		/ a jump vector table 
 	TAD I	JMPVE1
 	DCA 	JMPVE1
+	JMS 	TxtOut; CRLF	/ Do a newline before executing the command
 	JMP I	JMPVE1
-
 JMPVE1,	NOP
-JMPTB1,	dcFREE		/ tkFREE = -50 7730
-	dcNEW		/ tkNEW  = -47 7731
-	dcLIST		/ tkLIST = -46 7732
-	dcRUN		/ tkRUN  = -45 7733
-
+JMPTB1,	dcFREE			/ tkFREE = -50 7730
+	dcNEW			/ tkNEW  = -47 7731
+	dcLIST			/ tkLIST = -46 7732
+	dcRUN			/ tkRUN  = -45 7733
 
 	/
 	/ First search for the line in the code base and remove it if it's there
@@ -283,7 +284,7 @@ NotDir,	CLA CLL
 //
 // Direct Command LIST
 /[
-dcLIST,	JMS 	TxtOut; CRLF
+dcLIST,	CLA CLL
 	JMS	List
 	JMP I	Prompt
 /]
@@ -297,7 +298,7 @@ dcLIST,	JMS 	TxtOut; CRLF
 // Direct Command FREE
 //
 /[
-dcFREE,	JMS 	TxtOut; CRLF
+dcFREE,	CLA CLL
 	TAD 	(3777)		/ Search for location of last line of code
 	DCA 	numH
 	TAD 	(7777)
@@ -355,9 +356,7 @@ cEND,	JMP I 	Prompt
 //
 //
 /[
-cGOTO,
-	CLA CLL
-
+cGOTO,	CLA CLL
 	ISZ	src
 	JMS 	Expr; NumH
 	JMS	FndLin		/ Set src. L=1 if exact match
@@ -387,22 +386,19 @@ cGOTO,
 // Direct Command RUN
 //
 /[
-dcRUN,	
-	JMS 	TxtOut; CRLF
-
+dcRUN,	CLA CLL
 	TAD	(Code)	/ Start execution at first line of code
 	DCA 	src
 
-Runnin,	
-	CLA CLL
-	TAD I 	src	/ Save current line no
+Runnin,	CLA CLL
+	TAD I 	src	/ Save current lineNo high
 	DCA	lineH
 	ISZ 	src
-	TAD I 	src
+	TAD I 	src	/ and current lineNo low
 	DCA	lineL
 	ISZ 	src
 
-	ISZ 	src	/ Skip length
+	ISZ 	src	/ Skip the length byte
 
 Contin,	CLA CLL
 	TAD I 	src
