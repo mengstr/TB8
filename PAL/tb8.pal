@@ -297,7 +297,22 @@ dcLIST,	JMS 	TxtOut; CRLF
 // Direct Command FREE
 //
 /[
-dcFREE,	JMP I	Prompt
+dcFREE,	JMS 	TxtOut; CRLF
+	TAD 	(3777)		/ Search for location of last line of code
+	DCA 	numH
+	TAD 	(7777)
+	DCA 	numL
+	JMS	FndLin
+
+	CLA CLL			/ Calculate difference between end-of-code 
+	TAD 	(-CODEND)	/  memory and the last used location
+	TAD 	src
+	CIA
+	DCA 	tmpL
+	DCA	tmpH
+	JMS I	IntOut;tmpH	/ Print the calculated number
+	JMP I	Prompt
+
 /]
 
 
