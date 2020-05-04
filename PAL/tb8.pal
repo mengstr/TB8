@@ -145,7 +145,7 @@ DWM100	7777; 7634		/ Double Word constant -100(dec)
 DWM10,	7777; 7766		/ Double Word constant -10(dec)
 DWM1,	7777; 7777		/ Double Word constant -1(dec)
 
-OutInt,	OutInX
+IntOut,	IntOuX
 Prompt, PrompX
 /]
 
@@ -817,7 +817,7 @@ foo,	ISZ	src
 cPRINv,
 cPRINc,
 	JMS 	Expr;tmpH
-	JMS I	OutInt;tmpH
+	JMS I	IntOut;tmpH
 	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
 
 	/
@@ -1137,7 +1137,7 @@ ListL0,	CLA
 	TAD I	iP1		/ Check if linenumber is negative
 	SPA			/  if so we reached end of code and
 	JMP I	List		/  will return to caller
-	JMS I	OutInt; 0
+	JMS I	IntOut; 0
 	ISZ	iP1		/ Skip over the low part of line number
 	ISZ	iP1		/ Skip over the length
 
@@ -1196,7 +1196,7 @@ ListCo,	JMS 	SpcOut
 	TAD 	iP1
 	IAC
 	DCA	.+2
-	JMS I	OutInt; 0
+	JMS I	IntOut; 0
 	ISZ 	iP1
 	ISZ 	iP1
 	JMP  	ListL1		/ Continue in current line
@@ -1718,22 +1718,21 @@ CompaT,	CLL CML			/ Comparison true, return with L=1
 //					      ___) | | |_| | | |_| | | |_| |
 //					     |____/   \___/   \___/   \___/
 
-
-//    ___            _     ___           _
-//   / _ \   _   _  | |_  |_ _|  _ __   | |_
-//  | | | | | | | | | __|  | |  | '_ \  | __|
-//  | |_| | | |_| | | |_   | |  | | | | | |_
-//   \___/   \__,_|  \__| |___| |_| |_|  \__|
+//   ___           _      ___            _
+//  |_ _|  _ __   | |_   / _ \   _   _  | |_
+//   | |  | '_ \  | __| | | | | | | | | | __|
+//   | |  | | | | | |_  | |_| | | |_| | | |_
+//  |___| |_| |_|  \__|  \___/   \__,_|  \__|
 //
 // SIGNED DECIMAL PRINT, DOUBLE PRECISION
-// CALLING SEQUENCE:  JMS OutInt /SUBROUTINE CALLED
+// CALLING SEQUENCE:  JMS IntOut /SUBROUTINE CALLED
 //                    HIADDR     /ADDRESS OF HIGH ORDER WORD
 //                    RETURN     /RETURN WITH AC AND L CLEAR
 /[
-OutInX,	0
+IntOuX,	0
 	CLA CLL
 	DCA	noblan
-	TAD I 	OutInX		/PICK UP ADDRESS OF HIGH-ORDER WORD
+	TAD I 	IntOuX		/PICK UP ADDRESS OF HIGH-ORDER WORD
 	DCA 	SDGET
 	TAD I 	SDGET		/PICK UP HIGH-ORER WORD
 	SMA CLA			/IS IT NEGATIVE?
@@ -1755,7 +1754,7 @@ OutInX,	0
 	DCA 	SDCNT
 	TAD 	[DWM1M]		/INITIALIZE POINTER TO TABLE OF POWERS OF TEN
 	DCA 	SDPTR
-	ISZ 	OutInX		/INDEX LINKAGE FOR CORRECT RETURN
+	ISZ 	IntOuX		/INDEX LINKAGE FOR CORRECT RETURN
 SDARND,	TAD I	SDPTR		/PICK UP POWER OF TEN FOR USE IN SUBTRACT
 	ISZ 	SDPTR
 	DCA 	SDHSUB
@@ -1789,7 +1788,7 @@ Fix1,	CLA
 	TAD 	noblan		/ Check if we're still in blanking when exiting
 	SkpNOZ 			
 	JMS 	DigOut		/   if so we must print a 0 manually.
-	JMP I	OutInX		/YES, SUBROUTINE DONE. RETURN
+	JMP I	IntOuX		/YES, SUBROUTINE DONE. RETURN
 
 SDfix,	CLA			/ We reach here when trying to print 0
 	TAD 	noblan		/ Are we still in blanking?
@@ -2678,7 +2677,7 @@ GetKey,	0
 //           |___/
 /[
 Syntax,	JMS 	TxtOut; SynErr
-	JMS I	OutInt; lineH
+	JMS I	IntOut; lineH
 	JMS	TxtOut; CRLF
 	JMP I	Prompt
 
