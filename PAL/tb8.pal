@@ -2474,8 +2474,7 @@ TokBuf,	ZBLOCK 	10		/ Used for a bit of extra space when tokenizing
 
 KBuf,	ZBLOCK	120		/ Keyboard input buffer 80(dec) bytes
 
-/AZvars,	ZBLOCK 	64		/ The A-Z variables 26*2(dec) bytes
-AZvars,	1;1; 2;2; 3;3; ZBLOCK 56		/ The A-Z variables 26*2(dec) bytes
+AZvars,	ZBLOCK 	64		/ The A-Z variables 26*2(dec) bytes
 
 /]
 
