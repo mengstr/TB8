@@ -1480,19 +1480,15 @@ GetVal,	0
 	JMP 	Syntax		/ We're out of options, so print error meg
 
 	/
-	/ Get a random number
+	/ Get a random number for RND()
 	/
 GVrnd,
-	CLA CLL
+	JMS 	Random		/ Get random number for high part
+	AND 	(3777)		/ Make positive
 	DCA I 	key		/ Store 0 in high part 
 	ISZ  	key
 	JMS 	Random		/ Get random number for low part
 	DCA I 	key
-	ISZ 	src
-	ISZ 	src
-	ISZ 	src
-	ISZ 	src
-	ISZ 	src
 	JMP I	GetVal
 
 	/
@@ -2611,7 +2607,7 @@ tkTHEN=	-40;	ASCII "THEN"	; tkTHEN	/
 tkELSE=	-41;	ASCII "ELSE"	; tkELSE	/ 
 tkTO=	-42;	ASCII "TO"	; tkTO		/ 
 tkSTEP=	-43;	ASCII "STEP"	; tkSTEP	/ 
-tkRND=	-44;	ASCII "RND"	; tkRND		/ 
+tkRND=	-44;	ASCII "RND()"	; tkRND		/ 
 tkABS=	-45;	ASCII "ABS"	; tkABS		/ 
 tkCHR=	-46;	ASCII "CHR"	; tkCHR		/ 
 tkRUN=	-47;	ASCII "RUN"	; tkRUN		/ Direct command
