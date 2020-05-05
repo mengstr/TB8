@@ -781,6 +781,7 @@ cINPUT, CLA CLL
 	DCA 	src
 
 	ISZ 	src
+	JMS	TxtOut; CRLF
 	JMP	Running
 
 cINPhl,	0
