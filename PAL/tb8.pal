@@ -558,6 +558,20 @@ cREM,	CLA IAC CLL		/ Take the current line number + 1
 
 /]
 
+//   ____                    _
+//  / ___|   _   _   _ __   | |_    __ _  __  __
+//  \___ \  | | | | | '_ \  | __|  / _` | \ \/ /
+//   ___) | | |_| | | | | | | |_  | (_| |  >  <
+//  |____/   \__, | |_| |_|  \__|  \__,_| /_/\_\
+//           |___/
+/[
+Syntax,	JMS 	TxtOut; SynErr
+	JMS I	IntOut; lineH
+	JMS	TxtOut; CRLF
+	JMP I	Prompt
+
+/]
+
 
 
 *600
@@ -1339,6 +1353,9 @@ ExLoop,	CLA CLL
 	IAC
 	SkpNOZ			/ Skip if not Divide
 	JMP	ExDivi
+	IAC
+	SkpNOZ			/ Skip if not Modulus
+	JMP	ExModu
 /	JMP 	Syntax
 	JMP 	ExDone
 
@@ -1375,38 +1392,34 @@ ExMult,	ISZ	src
 ExDivi,	ISZ	src
 	JMS	GetVal; Arg2
 
-
 	CLA; DCA negg
 	CLA; TAD Arg1H	/ Check if negative dividend
 	SMA
-	JMP 	Mtes1
+	JMP 	Mtes1a
 	JMS 	Negate; Arg1H	/ Always positive
 	ISZ 	negg
 
-Mtes1,	CLA;TAD Arg2H	/ Check if positive divisor
+Mtes1a,	CLA;TAD Arg2H	/ Check if positive divisor
 	SPA
-	JMP 	Mtes2
+	JMP 	Mtes2a
 	JMS 	Negate; Arg2H	/ Always negative
 	CLA; TAD negg; TAD [-1]; DCA negg
 
-Mtes2,	JMS	Divide; Arg1H; Arg2H
+Mtes2a,	JMS	Divide; Arg1H; Arg2H
 /	SZL			/ L is 1 is error
-/	JMP 	Mtes4		
 	CLA; TAD DIVND4; DCA 	ResH+1
 	CLA; TAD DIVND3; DCA 	ResH
 	CLA; TAD negg
 	SZA
-	JMP 	Mtes3
+	JMP 	Mtes3a
 	JMS Negate; ResH
-Mtes3,
-
+Mtes3a,
 	CLA CLL
 	TAD 	ResH
 	DCA 	Arg1H
 	TAD 	ResL
 	DCA 	Arg1L
 	JMP	ExLoop
-
 
 
 	/
@@ -1435,6 +1448,46 @@ Negg,	0
 //					      / __/   / __/  | |_| | | |_| |
 //					     |_____| |_____|  \___/   \___/
 //					    
+
+
+	/
+	// TODO MODULUS probablu needs special handling for negative numbers
+	/
+ExModu,	ISZ	src
+	JMS	GetVal; Arg2
+
+	CLA; DCA negg
+	CLA; TAD Arg1H	/ Check if negative dividend
+	SMA
+	JMP 	Mtes1b
+	JMS 	Negate; Arg1H	/ Always positive
+	ISZ 	negg
+
+Mtes1b,	CLA;TAD Arg2H	/ Check if positive divisor
+	SPA
+	JMP 	Mtes2b
+	JMS 	Negate; Arg2H	/ Always negative
+	CLA; TAD negg; TAD [-1]; DCA negg
+
+Mtes2b,	JMS	Divide; Arg1H; Arg2H
+/	SZL			/ L is 1 is error
+	CLA; TAD DIVND2; DCA 	ResH+1
+	CLA; TAD DIVND1; DCA 	ResH
+	CLA; TAD negg
+	SZA
+	JMP 	Mtes3b
+	JMS Negate; ResH
+Mtes3b,
+	CLA CLL
+	TAD 	ResH
+	DCA 	Arg1H
+	TAD 	ResL
+	DCA 	Arg1L
+	JMP	ExLoop
+
+
+
+
 //    ____          _    __     __          _
 //   / ___|   ___  | |_  \ \   / /   __ _  | |
 //  | |  _   / _ \ | __|  \ \ / /   / _` | | |
@@ -1972,6 +2025,7 @@ BACKSP,	CLA			/ Check if buffer is not empty
 //					     |___ \    __) | | | | | | | | |
 //					      ___) |  / __/  | |_| | | |_| |
 //					     |____/  |_____|  \___/   \___/
+
 
 //      _          _       _
 //     / \      __| |   __| |
@@ -2580,44 +2634,45 @@ tkGT=	 -6;	ASCII ">"	; tkGT		/ Comparison
 tkNE=	 -7;	ASCII "<>"	; tkNE		/ Comparison
 tkLNEQ=	-10;	ASCII "<="	; tkLNEQ	/ Comparison
 tkLT=	-11;	ASCII "<"	; tkLT		/ Comparison
-tkPLUS=	-12;	ASCII "+"	; tkPLUS	/ 
-tkMINU=	-13;	ASCII "-"	; tkMINU	/ 
-tkMULT=	-14;	ASCII "*"	; tkMULT	/ 
-tkDIVI=	-15;	ASCII "/"	; tkDIVI	/ 
-tkLPAR=	-16;	ASCII "("	; tkLPAR	/ 
-tkRPAR=	-17;	ASCII ")"	; tkRPAR	/ 
-tkSEMI= -20;	ASCII ";"	; tkSEMI	/ Print space, no CRLF
-tkCOMM= -21;	ASCII ","	; tkCOMM	/ Print in columns 
-tkREM=	-22;	ASCII "REM"	; tkREM		/ Command - Ignore rest of line
-tkCOLO=	-23;	ASCII ":"	; tkCOLO	/ Command - Ignore this and continue
-tkLET=	-24;	ASCII "LET"	; tkLET		/ Command
-tkINPU=	-25;	ASCII "INPUT"	; tkINPU	/ Command
-tkGET=	-26;	ASCII "GET"	; tkGET		/ Command 
-tkPRIN=	-27;	ASCII "PRINT"	; tkPRIN	/ Command
+tkPLUS=	-12;	ASCII "+"	; tkPLUS	/ NumOp 
+tkMINU=	-13;	ASCII "-"	; tkMINU	/ NumOp
+tkMULT=	-14;	ASCII "*"	; tkMULT	/ NumOp
+tkDIVI=	-15;	ASCII "/"	; tkDIVI	/ NumOp
+tkMODU= -16;    ASCII "%"	; tkMODU	/ NumOp
+tkLPAR=	-17;	ASCII "("	; tkLPAR	/ 
+tkRPAR=	-20;	ASCII ")"	; tkRPAR	/ 
+tkSEMI= -21;	ASCII ";"	; tkSEMI	/ Print space, no CRLF
+tkCOMM= -22;	ASCII ","	; tkCOMM	/ Print in columns 
+tkREM=	-23;	ASCII "REM"	; tkREM		/ Command - Ignore rest of line
+tkCOLO=	-24;	ASCII ":"	; tkCOLO	/ Command - Ignore this and continue
+tkLET=	-25;	ASCII "LET"	; tkLET		/ Command
+tkINPU=	-26;	ASCII "INPUT"	; tkINPU	/ Command
+tkGET=	-27;	ASCII "GET"	; tkGET		/ Command 
+tkPRIN=	-30;	ASCII "PRINT"	; tkPRIN	/ Command
 		ASCII "?"	; tkPRIN	/ Command
-tkPRIQ=-30;	ASCII "XYZZY"	; tkPRIQ	/ Command
-tkIF=	-31;	ASCII "IF"	; tkIF		/ Command
-tkFOR=	-32;	ASCII "FOR"	; tkFOR		/ Command
-tkNEXT=	-33;	ASCII "NEXT"	; tkNEXT	/ Command
-tkGOTO=	-34;	ASCII "GOTO"	; tkGOTO	/ Command
-tkGOSU=	-35;	ASCII "GOSUB"	; tkGOSU	/ Command
-tkRETU=	-36;	ASCII "RETURN"	; tkRETU	/ Command
-tkEND=	-37;	ASCII "END"	; tkEND		/ Command
-tkTHEN=	-40;	ASCII "THEN"	; tkTHEN	/  
-tkELSE=	-41;	ASCII "ELSE"	; tkELSE	/ 
-tkTO=	-42;	ASCII "TO"	; tkTO		/ 
-tkSTEP=	-43;	ASCII "STEP"	; tkSTEP	/ 
-tkRND=	-44;	ASCII "RND()"	; tkRND		/ 
-tkABS=	-45;	ASCII "ABS"	; tkABS		/ 
-tkCHR=	-46;	ASCII "CHR"	; tkCHR		/ 
-tkRUN=	-47;	ASCII "RUN"	; tkRUN		/ Direct command
-tkLIST=	-50;	ASCII "LIST"	; tkLIST	/ Direct command
-tkNEW=	-51;	ASCII "NEW"	; tkNEW		/ Direct command
-tkFREE=	-52;	ASCII "FREE"	; tkFREE	/ Direct command
+tkPRIQ= -31;	ASCII "XYZZY"	; tkPRIQ	/ Command
+tkIF=	-32;	ASCII "IF"	; tkIF		/ Command
+tkFOR=	-33;	ASCII "FOR"	; tkFOR		/ Command
+tkNEXT=	-34;	ASCII "NEXT"	; tkNEXT	/ Command
+tkGOTO=	-35;	ASCII "GOTO"	; tkGOTO	/ Command
+tkGOSU=	-36;	ASCII "GOSUB"	; tkGOSU	/ Command
+tkRETU=	-37;	ASCII "RETURN"	; tkRETU	/ Command
+tkEND=	-40;	ASCII "END"	; tkEND		/ Command
+tkTHEN=	-41;	ASCII "THEN"	; tkTHEN	/  
+tkELSE=	-42;	ASCII "ELSE"	; tkELSE	/ 
+tkTO=	-43;	ASCII "TO"	; tkTO		/ 
+tkSTEP=	-44;	ASCII "STEP"	; tkSTEP	/ 
+tkRND=	-45;	ASCII "RND()"	; tkRND		/ 
+tkABS=	-46;	ASCII "ABS"	; tkABS		/ 
+tkCHR=	-47;	ASCII "CHR"	; tkCHR		/ 
+tkRUN=	-50;	ASCII "RUN"	; tkRUN		/ Direct command
+tkLIST=	-51;	ASCII "LIST"	; tkLIST	/ Direct command
+tkNEW=	-52;	ASCII "NEW"	; tkNEW		/ Direct command
+tkFREE=	-53;	ASCII "FREE"	; tkFREE	/ Direct command
 	0					/ End-of-table marker
 
-tkOFS1=  52;					/ Direct cmds offset
-tkOFS2=  37;					/ Commands offset
+tkOFS1=  53;					/ Direct cmds offset
+tkOFS2=  40;					/ Commands offset
 tkOFS3=  11;					/ Comparisons offset
 
 /]
@@ -2685,7 +2740,7 @@ TxtOu,
 //
 /[
 DigOut,	0
-	TAD	[60]		/ Convert number 0..9 to ASCII 0..9
+	TAD	(60)		/ Convert number 0..9 to ASCII 0..9
 	JMS	ChrOut		/ Call the ASCII printing function
 	JMP I 	DigOut
 /]
@@ -2737,26 +2792,6 @@ GetKey,	0
 	DCA	Key		/ Save the read character in Key
 	TAD	Key		/ Return with the character in AC as well
 	JMP I 	GetKey
-/]
-
-
-
-
-
-
-
-//   ____                    _
-//  / ___|   _   _   _ __   | |_    __ _  __  __
-//  \___ \  | | | | | '_ \  | __|  / _` | \ \/ /
-//   ___) | | |_| | | | | | | |_  | (_| |  >  <
-//  |____/   \__, | |_| |_|  \__|  \__,_| /_/\_\
-//           |___/
-/[
-Syntax,	JMS 	TxtOut; SynErr
-	JMS I	IntOut; lineH
-	JMS	TxtOut; CRLF
-	JMP I	Prompt
-
 /]
 
 
