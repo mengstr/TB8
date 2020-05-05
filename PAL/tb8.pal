@@ -272,6 +272,7 @@ NotDir,	CLA CLL
 	TAD 	(TokBuf)
 	DCA	src
 	JMS	CodCpy
+
 	JMP I	Prompt
 /]
 
@@ -487,10 +488,6 @@ CodDe0,	CLA
 /[
 CodIns,0
 	CLA
-	TAD	(1000)	/ TODO calculate length from end-of-code
-	DCA	cnt
-
-
 	TAD	cnt		/ Offset to last byte
 	TAD 	src
 	DCA 	src
@@ -827,20 +824,22 @@ cPRIf1,	ISZ	cPRIfl 	/ Set NO-CRLF flag and then fall into the regular
 			/ tkSEMI is encountered. The NOP is needed here since 
 			/ we go from 7777 to 0
 
+	ISZ 	src 	/ Advance over the semicolon or the final string-"
+
 cPRINT,	CLA CLL
 	TAD I 	src
 	SkpNOZ
 	JMP 	cPrEnd
 
-	TAD 	(-tkCOLO)
-	SkpNOZ
-	JMP 	cPrEnd
-	TAD 	(tkCOLO)
+/	TAD 	(-tkCOLO)	// TODO implement COLON
+/	SkpNOZ
+/	JMP 	cPrEnd
+/	TAD 	(tkCOLO)
 
-	TAD 	(-tkSEMI)
+	TAD 	(-tkSEMI)	/ Check if semicolon
 	SkpNOZ
 	JMP 	cPRIf1		/ Got a semicolon, so set the flag, and try more printing
-	TAD 	(tkSEMI)
+	TAD 	(tkSEMI)	/ Restore value after the semicolon check
 
 	TAD 	(1)
 	SkpNOZ
@@ -852,17 +851,17 @@ cPRINT,	CLA CLL
 	/
 	/ Print string
 	/
-cPRINs,	ISZ 	src		/ This will skip the leading "
-	CLA			/ Get character to print
+cPRINs,	CLA CLL			/ Get character to print
 	TAD I 	src
-	TAD 	[-tkSTRI]
-	SNA			/ at end of message
-	JMP 	foo
+	TAD 	[-tkSTRI]	/ Check if end of message, I.E the final "
+	SNA
+	JMP 	cPRIf0		/ yes, maybe do more printing?, but clear the NO-CRLF flag first
 	TAD	[tkSTRI]
 	JMS 	ChrOut		/ Call the character out for printing
+	ISZ 	src		/ Advance to the next character
 	JMP 	cPRINs		/ Now do next character
-foo,	ISZ	src
-	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
+
+cPRIse,	
 
 
 	/
@@ -872,15 +871,18 @@ cPRINv,
 cPRINc,
 	JMS 	Expr;tmpH
 	JMS I	IntOut;tmpH
+	cla cll; tad src; tad (7777); dca src	// TODO make this patch proper
 	JMP 	cPRIf0		/  yes, maybe do more printing?, but clear the NO-CRLF flag first
 
 	/
-	/ Print final CRLF (if not supressed) and go back to parse more tokens
+	/ Print final CRLF (if not supressed) and go back to RUN for parsing of more tokens
 	/
 cPrEnd,	CLA			/ Is the CRLF supressed by the semicolon-flag?
 	TAD	cPRIfl
-	SkpGT0
+	SkpZER
+	JMP 	cPrFin
 	JMS 	TxtOut; CRLF
+cPrFin,	ISZ	src
 	JMP 	Running
 
 /]
