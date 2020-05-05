@@ -1450,13 +1450,13 @@ Negg,	0
 //
 // Inputs:   none
 // Outputs:  double word to <Destination address>
-// Destroys: tmp
+// Destroys: key  // TODO replace KEY with something better
 //
 /[
 GetVal,	0
 	CLA CLL
 	TAD I	GetVal          / Get address of param
-	DCA 	tmp		/ Hold it in tmp until we need it
+	DCA 	key		/ Hold it in key until we need it
 	ISZ 	GetVal		/ Bump up return address
 
 	CLA CLL			/ Check if the value is a constant or a variable
@@ -1468,8 +1468,32 @@ GetVal,	0
 	JMP 	GVvar		/ Handle next token as a variable
 
 	IAC			/ tkCONS is -2, so after this AC should be 0
-	SkpZER			/ Skip if it is  tkCONS
+	SkpNOZ			/ Skip if not tkCONS
+	JMP 	GVcon		/ Handle next token as a constant
+
+	TAD	[-tkRND-2]	/ Check for RND(). CmdNo offset is 2
+	SkpNOZ			/ Skip if not tkRND
+	JMP 	GVrnd
+	TAD 	[tkRND+2]	/ Restore to original value
+
+
 	JMP 	Syntax		/ We're out of options, so print error meg
+
+	/
+	/ Get a random number
+	/
+GVrnd,
+	CLA CLL
+	DCA I 	key		/ Store 0 in high part 
+	ISZ  	key
+	JMS 	Random		/ Get random number for low part
+	DCA I 	key
+	ISZ 	src
+	ISZ 	src
+	ISZ 	src
+	ISZ 	src
+	ISZ 	src
+	JMP I	GetVal
 
 	/
 	/ Get the constant value
@@ -1477,11 +1501,11 @@ GetVal,	0
 GVcon,
 	CLA CLL
 	TAD I	src
-	DCA I 	tmp
+	DCA I 	key
 	ISZ 	src
-	ISZ 	tmp
+	ISZ 	key
 	TAD I	src
-	DCA I 	tmp
+	DCA I 	key
 	ISZ 	src
 	JMP I	GetVal
 
@@ -1498,11 +1522,11 @@ GVvar,
 
 	CLA CLL
 	TAD I	GVsrc
-	DCA I 	tmp
+	DCA I 	key
 	ISZ 	GVsrc
-	ISZ 	tmp
+	ISZ 	key
 	TAD I	GVsrc
-	DCA I 	tmp
+	DCA I 	key
 
 	ISZ 	src
 	JMP I	GetVal
