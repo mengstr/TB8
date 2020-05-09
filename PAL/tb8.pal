@@ -334,21 +334,6 @@ dcNEW,	NL7777			/ Set first byte of code buffer to
 /]
 
 
-
-//          _____   _   _   ____
-//    ___  | ____| | \ | | |  _ \
-//   / __| |  _|   |  \| | | | | |
-//  | (__  | |___  | |\  | | |_| |
-//   \___| |_____| |_| \_| |____/
-//
-// Stop the running of the program by simply go back to the prompt
-// again.
-//
-/[
-cEND,	JMP I 	Prompt	
-/]
-
-
 //           ____    ___    _____    ___
 //    ___   / ___|  / _ \  |_   _|  / _ \
 //   / __| | |  _  | | | |   | |   | | | |
@@ -361,7 +346,7 @@ cGOTO,	CLA CLL
 	JMS 	Expr; NumH
 	JMS	FndLin		/ Set src. L=1 if exact match
 	SZL 			/ Skip if Zero Link
-	JMP 	Running
+	JMP 	RunNL
 	JMP 	Syntax
 /]
 
@@ -382,61 +367,91 @@ cGOTO,	CLA CLL
 //  | (_| | | (__  |  _ <  | |_| | | |\  |
 //   \__,_|  \___| |_| \_\  \___/  |_| \_|
 //
-//
 // Direct Command RUN
+//
+// The lines of BASIC code are stored in a tokenized format. Each line starts
+// with 3 word header consisting of the high and low part of the LineNo and 
+// a length denoting the number of additional bytes that must be read to 
+// reach the start of the next line.
+//
+// If the lineNo is negative (the high word of the lineNo is 7777) then the
+// end-of-code is reached and an implicit END command is executed.
+//
+// This is followed by token words that are just a straight translation of
+// the keywords and numbers entered by the user.
+//
+// The end-of-line is denoted using a 0-token
+//
 //
 /[
 dcRUN,	CLA CLL
 	TAD	(Code)	/ Start execution at first line of code
 	DCA 	src
 
-Runnin,	CLA CLL
-	TAD I 	src	/ Save current lineNo high
-	DCA	lineH
-	ISZ 	src
-	TAD I 	src	/ and current lineNo low
+	/
+	/ We're at the beginning of a new line of code, so save the
+	/ two first words as into the lineNo variables for later usage
+	/ and then skip over the length byte. (It's only used in the
+	/ FndLin function to quickly find a specific line)
+	/
+RunNL,	CLA CLL
+	TAD I 	src	/ Get the high part of the lineNo
+	ISZ 	src	/ Advance the source pointer
+	SPA 		/ If it's not negative then it's a real lineNo
+	JMP I	Prompt	/   if negative it's end-of-code, so goto Prompt
+	DCA	lineH	/ Save the ight part of lineNo
+	TAD I 	src	/   get it and store it
+	ISZ 	src	/ Advance the source pointer
 	DCA	lineL
-	ISZ 	src
+	ISZ 	src	/ Finally advance past the length byte
 
-	ISZ 	src	/ Advance past the length byte
+	/
+	/ All commands will JMP to here when they have reached either
+	/ the end-of-line 0, or the tkCOLO (colon).  If it's 0 then
+	/ goto RunNL to start processing of a new line. If it's tkCOLO
+	/ goto back here to process the next token on the line. The
+	/ tkCOLO is handled in the jump-vector table as any other 
+	/ token.
+	/
+Runnin,	CLA CLL
+	TAD I 	src	/ Get token
+	ISZ 	src	/ Advance the token pointer
+	SkpNOZ		/ Check if token is 0000 (end-of-line)
+	JMP	RunNL	/   yes, then go process a new line from beginning
 
-Contin,	CLA CLL
-	TAD I 	src
 	TAD	(tkOFS2+JMPTB2)
 	DCA 	JMPVE2
 	TAD I	JMPVE2
 	DCA 	JMPVE2
-	ISZ 	src	/ Advance past the command token
 	JMP I	JMPVE2
-JMPVE2,	NOP
+JMPVE2,	0
 JMPTB2,
-	cEND		/ tkEND=	-35
-	cRETURN		/ tkRETU=	-34
-	cGOSUB		/ tkGOSU=	-33
-	cGOTO 		/ tkGOTO=	-32
-	cNEXT		/ tkNEXT=	-31
-	cFOR		/ tkFOR=	-30
-	cIFF 		/ tkIF=		-27
-	cPRINT		/ tkPRIQ=	-26
-	cPRINT		/ tkPRIN=	-25
-	cGET		/ tkGET=	-24
-	cINPUT 		/ tkINPU=	-23
-	cLET		/ tkLET=	-22
-	cCOLON		/ tkCOLO=	-21
-	cREM		/ tkREM=	-20
+	PrompX		/ tkEND=-35	Jump to end prompt to end the execution
+	cRETURN		/ tkRETU=-34
+	cGOSUB		/ tkGOSU=-33
+	cGOTO 		/ tkGOTO=-32
+	cNEXT		/ tkNEXT=-31
+	cFOR		/ tkFOR=-30
+	cIFF 		/ tkIF=	-27
+	cPRINT		/ tkPRIQ=-26
+	cPRINT		/ tkPRIN=-25
+	cGET		/ tkGET=-24
+	cINPUT 		/ tkINPU=-23
+	cLET		/ tkLET=-22
+	Running		/ tkCOLO=-21	 Just continue executing in the line
+	cREM		/ tkREM=-20
 /]
 
 
 /
-/
+/ Unimplemented commands 
 /
 cRETURN,
 cGOSUB,
 cNEXT,
 cFOR,
 cGET,
-cCOLON,
-JMP I	Prompt
+	JMP I	Prompt
 
 
 
@@ -554,7 +569,7 @@ cREM,	CLA IAC CLL		/ Take the current line number + 1
 	TAD 	LineH
 	DCA	NumH
 	JMS 	FndLin		/ and then search for that line number.
-	JMP 	Running
+	JMP 	RunNL
 
 /]
 
@@ -691,7 +706,7 @@ cIFF,	JMS 	Expr; left	/ Get expression #11
 	JMS	Compar; Left; Right
 
 	SZL			/ Skip on L=0 (failed comparison)
-	JMP 	Contin		/ If successful comparison continue parsing the line]
+	JMP 	Running		/ If successful comparison continue parsing the line]
 
 	/
 	/ The comparison failed, so we need to find the start of the next line
@@ -737,13 +752,6 @@ cLET,	CLA CLL
 	JMS	Expr
 cLetDst,0
 
-
-	/
-	/ Skip over the final NIL or the COLON on the line
-	/ and go back to process more tokens.
-	/
-cLetEx,	
-	ISZ 	src		/ skip the NIL or COLON
 	JMP 	Running
 
 /]
@@ -794,8 +802,7 @@ cINPUT, CLA CLL
 	TAD 	cINPhl		/ Restored clobbered src
 	DCA 	src
 
-	ISZ 	src
-	JMS	TxtOut; CRLF
+	JMS	TxtOut; CRLF	/ INPUT always prints a CRLF
 	JMP	Running
 
 cINPhl,	0
@@ -846,10 +853,10 @@ cPRINT,	CLA CLL
 	SkpNOZ
 	JMP 	cPrEnd
 
-/	TAD 	(-tkCOLO)	// TODO implement COLON
-/	SkpNOZ
-/	JMP 	cPrEnd
-/	TAD 	(tkCOLO)
+	TAD 	(-tkCOLO)	// TODO implement COLON
+	SkpNOZ
+	JMP 	cPrEnd
+	TAD 	(tkCOLO)
 
 	TAD 	(-tkSEMI)	/ Check if semicolon
 	SkpNOZ
@@ -897,8 +904,7 @@ cPrEnd,	CLA			/ Is the CRLF supressed by the semicolon-flag?
 	SkpZER
 	JMP 	cPrFin
 	JMS 	TxtOut; CRLF
-cPrFin,	ISZ	src
-	JMP 	Running
+cPrFin,	JMP 	Running
 
 /]
 
@@ -1250,7 +1256,7 @@ ListL2,	CLA
 	DCA	.+2
 	JMS 	TxtOut; 0
 	NOP
-	TAD 	(-7756)		/ Test for tkREM
+	TAD 	(-tkREM)	/ Handle REM special
 	SkpNOZ
 	JMP 	ListPl		/ If it was REM then print the rest of line as-is
 	JMP  	ListL1		/ Continue in current line
@@ -1451,7 +1457,9 @@ Negg,	0
 
 
 	/
-	// TODO MODULUS probablu needs special handling for negative numbers
+	// TODO MODULUS probably needs special handling for negative numbers
+	/
+	/ 11%3=2 -11%3=-2 11%-3=2 -11%-3=-2
 	/
 ExModu,	ISZ	src
 	JMS	GetVal; Arg2
@@ -2541,11 +2549,6 @@ Greet,
 //
 /[
 CODE,
-	0;12;16;tkPRIN;tkCONS;0;1;tkPLUS;tkCONS;0;2;tkPLUS;tkCONS;0;3;0	/ 10 PRINT 1+2+3
-	0;24;15;tkLET;tkVAR;101;tkEQ;tkCONS;0;13;tkPLUS;tkCONS;1;1134;0	/ 20 LET A=11+4700
-	0;36;11;tkLET;tkVAR;102;tkEQ;tkCONS;0;52;0			/ 30 LET B=42
-	0;50;10;tkPRIN;tkVAR;101;tkSEMI;tkVAR;102;0			/ 40 PRINT A;B
-	0;62;3;tkEND;0							/ 50 END
 	7777
 
 

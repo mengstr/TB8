@@ -339,6 +339,10 @@ NEW
 121 END
 
 new
+4 rem
+5 rem Hello World program
+6 rem
+new
 10 let N = 1
 20 ? "Hello world #"; N
 30 let N = N + 1
@@ -368,16 +372,24 @@ NEW
 
 -------------------------------------------------------
 
+
 new
-10 LET A=10
-20 LET B=11
-30 IF A > B THEN PRINT ">"
-40 IF A < B THEN PRINT "<"
-50 IF A = B THEN PRINT "="
-60 IF A <> B THEN PRINT "!"
-70 IF A >= B THEN PRINT "}"
-80 IF A <= B THEN PRINT "{"
-90 END
+free
+5 LET N = 100
+10 LET A = 0 - N
+20 LET B = 0 - N 
+30 IF A > B THEN PRINT A ; " > " ; B
+40 IF A < B THEN PRINT A ; " < " ; B
+50 IF A = B THEN PRINT A ; " = " ; B
+60 IF A <> B THEN PRINT A ; " <> " ; B
+70 IF A >= B THEN PRINT  A ; " >= " ; B
+80 IF A <= B THEN PRINT A ; " <= " ; B
+90 LET B = B + 1
+100 IF B <= N THEN GOTO 30
+110 LET A = A + 1
+120 IF A <= N THEN GOTO 20
+130 END
+free
 
 >run
 <
@@ -399,21 +411,125 @@ new
 
 
 new
-free
-10 print "Input first number:"
-free
+10 print "Input first number:";
 20 input A
-free
-30 print "Input second number:"
-free
+30 print "Input second number:";
 40 input B
-free
 50 if A = B then print "The numbers are the same"
-free
-60 if A = B then print "The first number is largest"
-free
-70 if A = B then print "The second number is largest"
-free
+60 if A > B then print "The first number is largest"
+70 if A < B then print "The second number is largest"
 80 end
-free
 list
+
+new
+10 print "Number1:";
+20 input A
+30 print "Number2:";
+40 input B
+50 if A = B then print "Same"
+60 if A > B then print "#1 is largest"
+70 if A < B then print "#2 is largest"
+80 end
+list
+
+
+new
+10 PRINT "A"
+20 PRINT "B"
+30 PRINT "C"
+40 PRINT "A" ; "B" ; "C"
+50 PRINT "A" ;
+51 PRINT "B" ;
+52 PRINT "C" 
+60 PRINT 0
+61 PRINT 1
+62 PRINT 2
+70 PRINT 0 ; 1 ; 2
+80 print 0 ;
+81 print 1 ;
+82 print 2 
+90 print "A=" ; A ; "0="; 0
+999 END
+list
+
+new
+10 PRINT "Random ";
+20 LET A = RND() 
+30 PRINT A
+40 GOTO 10
+50 END
+list
+
+
+new
+10 LET A = 11
+11 LET B = 0 - A
+12 LET C = 3
+13 LET D = 0 - C
+20 PRINT A ; " % " ; C; " SHOULD BE 2, IS "; A % C
+21 PRINT B ; " % " ; C; " SHOULD BE -2, IS "; B % C
+22 PRINT A ; " % " ; D; " SHOULD BE 2, IS "; A % D
+23 PRINT B ; " % " ; D; " SHOULD BE -2, IS "; B % D
+50 end
+list
+
+
+new
+10 LET A = 1 : LET B = 2 
+30 END
+
+
+10 REMAAAAAAAAAA
+20 REMBBBBBBBBBB
+30 REMCCCCCCCCCC
+40 REMDDDDDDDDDD
+50 REMEEEEEEEEEE
+60 REMFFFFFFFFFF
+70 REMGGGGGGGGGG
+80 REMHHHHHHHHHH
+6000: 0000 0012 0016 7755 0101 0101 0101 0101
+6010: 0101 0101 0101 0101 0101 0101 0040 0000
+6020: 0000 0024 0016 7755 0102 0102 0102 0102
+6030: 0102 0102 0102 0102 0102 0102 0040 0000
+6040: 0000 0036 0016 7755 0103 0103 0103 0103
+6050: 0103 0103 0103 0103 0103 0103 0040 0000
+6060: 0000 0050 0016 7755 0104 0104 0104 0104
+6070: 0104 0104 0104 0104 0104 0104 0040 0000
+6100: 0000 0062 0016 7755 0105 0105 0105 0105
+6110: 0105 0105 0105 0105 0105 0105 0040 0000
+6120: 0000 0074 0016 7755 0106 0106 0106 0106
+6130: 0106 0106 0106 0106 0106 0106 0040 0000
+6140: 0000 0106 0016 7755 0107 0107 0107 0107
+6150: 0107 0107 0107 0107 0107 0107 0040 0000
+6160: 0000 0120 0016 7755 0110 0110 0110 0110
+6170: 0110 0110 0110 0110 0110 0110 0040 0000
+6200: 7777 7402 7402 7402 7402 7402 7402 7402
+6210: 7402 7402 7402 7402 7402 7402 7402 7402
+6220: 7402 7402 7402 7402 7402 7402 7402 7402
+6230: 7402 7402 7402 7402 7402 7402 7402 7402
+
+80 REMHHHHHHHHHH
+70 REMGGGGGGGGGG
+60 REMFFFFFFFFFF
+50 REMEEEEEEEEEE
+40 REMDDDDDDDDDD
+30 REMCCCCCCCCCC
+20 REMBBBBBBBBBB
+10 REMAAAAAAAAAA
+
+
+
+10 LET A = 10 : LET B = 20
+15 PRINT "Enter new value for B:" ; : INPUT B
+20 PRINT "HELLO " ; : PRINT A ; " and " ; B
+30 PRINT "WORLD " ; : PRINT 10 ; " and " ; 20
+40 GOTO 50 : LET A = 1
+45 LET A = 2
+50 PRINT "A IS STILL " ; A
+60 LET A = 1 : GOTO 70 
+65 LET A = 2
+70 PRINT "A IS NOW " ; A : LET A = 3 : PRINT "AND NOW " ; A
+80 PRINT 1 + 2 * 4 / 2 ; " issit 6?"
+
+
+
