@@ -241,7 +241,13 @@ JMPTB1,	dcFREE			/ tkFREE = -50 7730
 	/ already. Then check if the new line is not empty and insert it into
 	/ the code base.
 	/
-NotDir,	CLA CLL
+
+NotDir,	
+	/
+	/ Start by deleting the specified line from code. This can only be
+	/ done if the lineNo is exactly matched.
+	/
+	CLA CLL
 	TAD I	(TokBuf)
 	DCA 	NumH
 	TAD I	(TokBuf+1)
@@ -249,22 +255,42 @@ NotDir,	CLA CLL
 	JMS	FndLine		/ Locate line, return pointer in src
 	SZL			/ L is 0 if exact line not found, so skip deleting
 	JMS	CodDel		/ Delete line pointed to by src
-	CLA			/ Now check if new line is empty
+
+	/
+	/ If the new line if empty (just the line number) then
+	/ we're done. The user just wanted to delete a line in
+	/ the source.
+	/
+	CLA CLL			/ Now check if new line is empty
 	TAD 	TokBuf+2	/  I.E length is 2
 	TAD	[-2]
 	SNA 			/ Skip if length is not 2
 	JMP I	Prompt
 
-	CLA			/ Now make a hole in the code
+	/
+	/ Make a hole in the code large enough to fit the new line
+	/
+	CLA CLL			/ Now make a hole in the code
 	TAD 	TokBuf+2	/ Add 2 to the length to fit LineNo
 	TAD	[2]
 	DCA	cnt
 	TAD	src		/ The destination is 'cnt' away
 	TAD	cnt
 	DCA	dst
+	TAD src; DCA srcHld
+	JMS 	FndEnd
+	TAD 	srcHld
+	CIA
+	TAD 	src
+	TAD	cnt
+	DCA	cnt
+	TAD srcHld; DCA src
 	JMS 	CodIns
 
-	CLA			/ Then copy the new tokens into the code
+	/
+	/ Copy the new line into the hole just created
+	/
+	CLA CLL			/ Then copy the new tokens into the code
 	TAD 	TokBuf+2
 	DCA	cnt
 	TAD 	src
@@ -274,6 +300,7 @@ NotDir,	CLA CLL
 	JMS	CodCpy
 
 	JMP I	Prompt
+
 /]
 
 
@@ -299,16 +326,9 @@ dcLIST,	CLA CLL
 // Direct Command FREE
 //
 /[
-dcFREE,	CLA CLL
-	TAD 	(3777)		/ Search for location of last line of code
-	DCA 	numH
-	TAD 	(7777)
-	DCA 	numL
-	JMS	FndLin
-
-	CLA CLL			/ Calculate difference between end-of-code 
-	TAD 	(-CODEND)	/  memory and the last used location
-	TAD 	src
+dcFREE,	JMS 	FndEnd
+	TAD 	(-CODEND)	/ Calculate difference between end-of-code
+	TAD 	src		/  memory and the last used location
 	CIA
 	DCA 	tmpL
 	DCA	tmpH
@@ -316,6 +336,7 @@ dcFREE,	CLA CLL
 	JMP I	Prompt
 
 /]
+
 
 
 //       _          _   _   _____  __        __
@@ -509,7 +530,7 @@ CodDe0,	CLA
 // Outputs:
 /[
 CodIns,0
-	CLA
+	CLA CLL
 	TAD	cnt		/ Offset to last byte
 	TAD 	src
 	DCA 	src
@@ -603,6 +624,28 @@ Syntax,	JMS 	TxtOut; SynErr
 //					     | |_| | | (_) | | |_| | | |_| |
 //					      \___/   \___/   \___/   \___/
 
+//   _____               _   _____               _
+//  |  ___|  _ __     __| | | ____|  _ __     __| |
+//  | |_    | '_ \   / _` | |  _|   | '_ \   / _` |
+//  |  _|   | | | | | (_| | | |___  | | | | | (_| |
+//  |_|     |_| |_|  \__,_| |_____| |_| |_|  \__,_|
+//
+// Return the location of the end-of-code marker 7777.
+//
+// Destroys numH, numL
+// Returns location in src 
+//
+/[
+FndEnd,	0
+	CLA CLL
+	TAD 	(3777)		/ Search for location of last line of code
+	DCA 	numH
+	TAD 	(7777)
+	DCA 	numL
+	JMS	FndLin
+	CLA CLL			 
+	JMP I 	FndEnd
+/]
 
 
 //   _____               _   _       _
@@ -618,6 +661,7 @@ Syntax,	JMS 	TxtOut; SynErr
 // Returns with src pointing to the line. 
 // L=1 if exact match, L=0 if the next higher is found
 //
+// Destroys tmp, tmpH, tmpL
 /[
 FndLin,	0
 	CLA
@@ -1200,6 +1244,7 @@ ZeroM0,	DCA I 	iP1
 	JMP 	ZeroM0
 	JMP I 	ZeroM
 /]
+
 
 
 //   _       _         _
