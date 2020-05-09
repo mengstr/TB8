@@ -414,7 +414,14 @@ RunNL,	CLA CLL
 	/ token.
 	/
 Runnin,	CLA CLL
-	TAD I 	src	/ Get token
+	KRS 		/ Read keyboard static
+	TAD 	(-203)	/ Check if received ^C from keyboard
+	SkpNOZ
+	JMP I 	Prompt	/ If ^C then jump to prompt
+
+	CLA CLL			/ Get token
+
+	TAD I 	src
 	ISZ 	src	/ Advance the token pointer
 	SkpNOZ		/ Check if token is 0000 (end-of-line)
 	JMP	RunNL	/   yes, then go process a new line from beginning
@@ -1960,12 +1967,17 @@ ReadLi,	0
 ReadL0,
 	JMS	GetKey
 
-	/ Test key for BACKSPACE  10   8(dec)	delta 10
+	/ Test key for ^C         3    3(dec)	delta 3
+	/              BACKSPACE  10   8(dec)	delta 5
 	/              LINEFEED   12  10(dec)	delta 2
 	/              ENTER      15  13(dec)	delta 3
 	/              DELETE    177 127(dec)	delta 162
 
-	TAD	[-10]		/ Subtract BACKSPACE
+	TAD	[-3]		/ Subtract ^C
+	SNA			/ Test if it was ^C
+	JMP I 	Prompt
+
+	TAD	[-5]		/ Subtract BACKSPACE
 	SNA			/ Test if it was BACKSPACE
 	JMP	BACKSP
 
@@ -2001,10 +2013,10 @@ ReadL0,
 	DCA I 	KBufP		/ Store the key into the buffer
 	JMP 	ReadL0
 
-KeyERR,
-	CLA			/ Print the BEL character to alert for error
-	TAD 	[7]
-	TLS
+KeyERR,				// TODO Activate BEL printing again
+/	CLA			/ Print the BEL character to alert for error
+/	TAD 	[7]		
+/	TLS
 	JMP	ReadL0
 
 ReadE, 	CLA			/ Add trailing space for tokenizer
