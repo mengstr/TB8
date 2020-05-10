@@ -65,6 +65,7 @@ PrintP,	.-.			/ Pointer to string to be printed
 KBufP,	.-.			/ Pointer to the first free location in KBuf
 iP1,	.-.			/ Generic memory pointer
 iP2,	.-.			/ Generic memory pointer
+iSP,	.-.			/ Stack pointer for GOSUB / FOR
 
 *20
 cnt,	.-.			/ Generic counter
@@ -408,6 +409,9 @@ cGOTO,	CLA CLL
 dcRUN,	CLA CLL
 	TAD	(Code)	/ Start execution at first line of code
 	DCA 	src
+	TAD	(TokBuf-1)/ Initailzie Stack Pointer
+	DCA	iSP	/ Set SP
+	DCA I 	iSP	/ Set first entry in SP as 0/empty
 
 	/
 	/ We're at the beginning of a new line of code, so save the
@@ -474,8 +478,6 @@ JMPTB2,
 /
 / Unimplemented commands 
 /
-cRETURN,
-cGOSUB,
 cNEXT,
 cFOR,
 cGET,
@@ -623,6 +625,69 @@ Syntax,	JMS 	TxtOut; SynErr
 //					     | | | | | '_ \  | | | | | | | |
 //					     | |_| | | (_) | | |_| | | |_| |
 //					      \___/   \___/   \___/   \___/
+
+//           ____    ___    ____    _   _   ____
+//    ___   / ___|  / _ \  / ___|  | | | | | __ )
+//   / __| | |  _  | | | | \___ \  | | | | |  _ \
+//  | (__  | |_| | | |_| |  ___) | | |_| | | |_) |
+//   \___|  \____|  \___/  |____/   \___/  |____/
+//
+/[
+cGOSUB,	CLA CLL
+	JMS 	Expr; NumH
+	JMS 	PushAd
+	JMS	FndLin		/ Set src. L=1 if exact match
+	SZL 			/ Skip if Zero Link
+	JMP 	RunNL
+	JMP 	Syntax
+	JMP	Running
+/]
+
+//          ____    _____   _____   _   _   ____    _   _
+//    ___  |  _ \  | ____| |_   _| | | | | |  _ \  | \ | |
+//   / __| | |_) | |  _|     | |   | | | | | |_) | |  \| |
+//  | (__  |  _ <  | |___    | |   | |_| | |  _ <  | |\  |
+//   \___| |_| \_\ |_____|   |_|    \___/  |_| \_\ |_| \_|
+//
+/[
+cRETURN,
+	JMS 	PopAd
+	JMP	Running
+/]
+
+/[
+PushAd,	0
+	CLA CLL
+	TAD 	src
+	DCA I 	iSP	/ Push the Address value
+	CLA IAC CLL	/ Load AC=1 L=0
+	DCA I 	iSP	/ Push 1 for Type
+	JMP I 	PushAd
+/]
+
+/[
+PopAd,	0
+	CLA CLL
+	TAD 	iSP	/ Get the type for what SP is pointing to
+	DCA	tmp
+	TAD I 	tmp	
+	SkpNOZ
+	JMP 	Syntax	/ If type=0 then at end of stack, can't pop then
+	CIA
+	TAD 	tmp
+	DCA 	tmp
+	TAD I 	tmp
+	DCA	src
+
+	TAD 	iSP	/ Back the SP down two words so it points to
+	TAD 	[-2]	/ the previous entry
+	DCA 	iSP
+
+	JMP I 	PopAd
+/]
+
+
+
 
 //   _____               _   _____               _
 //  |  ___|  _ __     __| | | ____|  _ __     __| |
