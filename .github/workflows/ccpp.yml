@@ -17,8 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v2
-    # - name: test
-    #   run: make test
+    # - name: Setup tmate session
+    #   uses: mxschmitt/action-tmate@v2
+    - name: test
+      run: make test
       

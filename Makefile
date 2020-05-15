@@ -44,7 +44,7 @@ tests/%.lst.tmp : tests/%.bas
 	@printf "LIST\n" 		|$(UDP)
 	@sleep 2
 	@kill -hup $(ID) >/dev/null 2>/dev/null || true
-	@sed -n '/\>LIST/,/^[[:space:]]*$$/p' golden.tmp > $@
+	@sed -n '/>LIST/,/^[[:space:]]*$$/p' golden.tmp | sed -e '$$a\' > $@
 	@diff -a $@ $(addsuffix .golden, $(basename $@))
 	@rm $@
 
@@ -63,7 +63,7 @@ tests/%.run.tmp : tests/%.bas
 	else sleep $(RUNTIME); fi
 	@sleep 0.3
 	@kill -hup $(ID) >/dev/null 2>/dev/null || true
-	@sed -n '/\>RUN/,//p' golden.tmp > $@
+	@sed -n '/>RUN/,//p' golden.tmp | sed -e '$$a\' > $@
 	@diff -a $@ $(addsuffix .golden, $(basename $@))
 	@rm $@
 
@@ -82,7 +82,7 @@ tests/%.lst.golden : tests/%.bas
 	@printf "LIST\n" 		|$(UDP)
 	@sleep 2
 	@kill -hup $(ID) >/dev/null 2>/dev/null || true
-	@sed -n '/\>LIST/,/^[[:space:]]*$$/p' golden.tmp > $@
+	@sed -n '/>LIST/,/^[[:space:]]*$$/p' golden.tmp | sed -e '$$a\' > $@
 
 tests/%.run.golden : tests/%.bas
 	@echo Making golden RUN for $<
@@ -99,7 +99,7 @@ tests/%.run.golden : tests/%.bas
 	else sleep $(RUNTIME); fi
 	@sleep 0.3
 	@kill -hup $(ID) >/dev/null 2>/dev/null || true
-	@sed -n '/\>RUN/,//p' golden.tmp > $@
+	@sed -n '/>RUN/,//p' golden.tmp | sed -e '$$a\' > $@
 
 
 #
