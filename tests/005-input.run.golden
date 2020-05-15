@@ -1,0 +1,14 @@
+>RUN
+Input first number:5555
+Input second number:5555
+The numbers are the same
+
+Input first number:6666
+Input second number:7777
+The second number is largest
+
+Input first number:9999
+Input second number:8888
+The first number is largest
+
+Input first number:

@@ -164,7 +164,6 @@ Prompt, PrompX
 //    \/     |___/  \__|  \__,_| |_|     \__|
 //
 /[
-
 	KCC     		/ Clear keyboard flag
 	JMS 	TxtOut; Greet	/ Print greeting/header
 
@@ -478,8 +477,6 @@ JMPTB2,
 /
 / Unimplemented commands 
 /
-cNEXT,
-cFOR,
 cGET,
 	JMP I	Prompt
 
@@ -655,6 +652,19 @@ cRETURN,
 	JMP	Running
 /]
 
+
+//   ____                  _          _          _
+//  |  _ \   _   _   ___  | |__      / \      __| |
+//  | |_) | | | | | / __| | '_ \    / _ \    / _` |
+//  |  __/  | |_| | \__ \ | | | |  / ___ \  | (_| |
+//  |_|      \__,_| |___/ |_| |_| /_/   \_\  \__,_|
+//
+// Pushes the current src onto the common stack for GOSUB. Each 
+// entry of the stack begins with the data followed by the length 
+// of the data. The lenght byte is only used when POP'ing from so
+// it needs to be after the data block. The first word of the stack
+// if set to 0 in cRUN and acts as a marker for an empty stack.
+//
 /[
 PushAd,	0
 	CLA CLL
@@ -665,18 +675,64 @@ PushAd,	0
 	JMP I 	PushAd
 /]
 
+
+//   ____                  _       _____
+//  |  _ \   _   _   ___  | |__   |  ___|   ___
+//  | |_) | | | | | / __| | '_ \  | |_     / _ \
+//  |  __/  | |_| | \__ \ | | | | |  _|   | (_) |
+//  |_|      \__,_| |___/ |_| |_| |_|      \___/
+//
+//
+// 1var, 2final, 1src 
+//
+//
+//
+//[
+/PushFo,	0
+/	CLA CLL
+/	TAD 	(-1)
+/	DCA I 	iSP	/ Push the variable
+/	TAD 	(-1)
+/	DCA I 	iSP	/ Push the finalH
+/	TAD 	(-1)
+/	DCA I 	iSP	/ Push the finalL
+/	TAD 	(-1)
+/	DCA I 	iSP	/ Push the src
+/	TAD 	(5)	/ Push 4 for Type
+/	DCA I 	iSP	
+/	JMP I 	PushFo
+//]
+
+
+//   ____                       _          _
+//  |  _ \    ___    _ __      / \      __| |
+//  | |_) |  / _ \  | '_ \    / _ \    / _` |
+//  |  __/  | (_) | | |_) |  / ___ \  | (_| |
+//  |_|      \___/  | .__/  /_/   \_\  \__,_|
+//                  |_|
 /[
 PopAd,	0
-	CLA CLL
+PopAdL,	CLA CLL
 	TAD 	iSP	/ Get the type for what SP is pointing to
 	DCA	tmp
 	TAD I 	tmp	
 	SkpNOZ
 	JMP 	Syntax	/ If type=0 then at end of stack, can't pop then
-	CIA
+	TAD 	(-1)	/ Check if type is 1
+	SkpNOZ
+	JMP 	PopAd1
+
+	/ If the type is not 0 or 1 it must be 4 (FOR)
+	CLA CLL
+	TAD 	iSP	/ Back the SP down five words so it points to
+	TAD 	[-5]	/ the previous entry
+	DCA 	iSP
+	JMP 	PopAdL
+
+PopAd1,	TAD	(-1)	/ The pushed value is 1 before the current SP
 	TAD 	tmp
 	DCA 	tmp
-	TAD I 	tmp
+	TAD I 	tmp	/ Get the value and store it in src
 	DCA	src
 
 	TAD 	iSP	/ Back the SP down two words so it points to
@@ -687,6 +743,17 @@ PopAd,	0
 /]
 
 
+//   ____                    _____
+//  |  _ \    ___    _ __   |  ___|   ___
+//  | |_) |  / _ \  | '_ \  | |_     / _ \
+//  |  __/  | (_) | | |_) | |  _|   | (_) |
+//  |_|      \___/  | .__/  |_|      \___/
+//                  |_|
+//[
+/PopFo,	0
+/	CLA CLL
+/	JMP I 	PopFo
+//]
 
 
 //   _____               _   _____               _
@@ -843,9 +910,26 @@ right,	0;0
 //  | (__  | |___  | |___    | |
 //   \___| |_____| |_____|   |_|
 //
+// LET <var> = <expr>
+//
+// This command simply calls the doLet function. It is broken out as
+// a separate function to be able to be utilized in the first part of
+// the FOR command
+/[
+cLET,	JMS	doLet
+	JMP 	Running
+/]
+
+
+//       _           _              _
+//    __| |   ___   | |       ___  | |_
+//   / _` |  / _ \  | |      / _ \ | __|
+//  | (_| | | (_) | | |___  |  __/ | |_
+//   \__,_|  \___/  |_____|  \___|  \__|
 //
 /[
-cLET,	CLA CLL
+doLET,	0
+	CLA CLL
 	TAD I 	src		/ Check if token is Variable
 	JMS 	CkRang; tkVAR; tkVAR / Check if token is Variable
 
@@ -868,9 +952,9 @@ cLET,	CLA CLL
 	JMS	Expr
 cLetDst,0
 
-	JMP 	Running
-
+	JMP I 	doLet
 /]
+
 
 
 //          ___   _   _   ____    _   _   _____
@@ -1707,9 +1791,7 @@ GVvar,
 GVsrc,	0
 /]
 
-
-
-
+*2400
 
 //					      ____    _  _      ___     ___
 //					     |___ \  | || |    / _ \   / _ \
@@ -1717,6 +1799,171 @@ GVsrc,	0
 //					      / __/  |__   _| | |_| | | |_| |
 //					     |_____|    |_|    \___/   \___/
 //
+//          _____    ___    ____
+//    ___  |  ___|  / _ \  |  _ \
+//   / __| | |_    | | | | | |_) |
+//  | (__  |  _|   | |_| | |  _ <
+//   \___| |_|      \___/  |_| \_\
+//
+// FOR <var> = <expr> TO <expr>
+//
+/[
+cFOR,	/
+	/ Use the doLet function to set the variable to its initial
+	/ value.
+	/
+	JMS 	doLet
+	TAD	cLetDst		/ Get the variable address
+	DCA I 	iSP		/ Push the variable address to stack
+
+	CLA CLL			/ Get the TO
+	TAD I	src
+	JMS	CkRang; tkTO; tkTO / Verify TO token
+	ISZ	src
+
+	JMS 	Expr; right	/ Get expression #2
+	CLA CLL
+	TAD 	right		/ Get high part of second expression
+	DCA I 	iSP		/ Push high part of final expression to stack
+	TAD 	right+1		/ Get low part of second expression
+	DCA I 	iSP		/ Push high part of final expression to stack
+
+	TAD	src		/ Get address of first token in the FOR loop
+	DCA I 	iSP		/ Push loop address to stack
+
+	TAD	(4)		/ Length of entry marker
+	DCA I 	iSP		/ Push length to stack
+
+	JMP	Running
+/]
+
+
+
+//          _   _   _____  __  __  _____
+//    ___  | \ | | | ____| \ \/ / |_   _|
+//   / __| |  \| | |  _|    \  /    | |
+//  | (__  | |\  | | |___   /  \    | |
+//   \___| |_| \_| |_____| /_/\_\   |_|
+//
+// NEXT <var>
+/[
+cNEXT,	CLA CLL
+	TAD I 	src		/ Check if token is Variable
+	JMS 	CkRang; tkVAR; tkVAR / Check if token is Variable
+
+	ISZ 	src
+	CLA CLL
+	TAD I 	src		/ Get destination variable address
+	JMS 	UCase
+	TAD 	(-301)		/ Ucase sets parity, so subtract A plus parity
+	JMS 	CkRang; 0; 31	/ Verify A-Z
+	CLL RAL
+	TAD 	(AZvars)
+	DCA	cLetDst
+
+	/
+	/ Find the specified FOR variable in the stack
+	/
+NextL,	CLA CLL
+	TAD 	iSP	/ Get the type for what SP is pointing to
+	DCA	tmp
+	TAD I 	tmp	
+	SkpNOZ
+	JMP 	Syntax	/ If type=0 then at end of stack, can't pop then
+	TAD 	(-4)	/ Check if type is 4
+	SkpNOZ
+	JMP 	Next4
+
+	/ If the type is not 0 or 4 it must be 1 (GOSUB)
+	CLA CLL
+	TAD 	iSP	/ Back the SP down two words so it points to
+	TAD 	[-2]	/ the previous entry
+	DCA 	iSP
+	JMP 	NextL
+
+Next4,	TAD	(-4)	/ The pushed value is 4 before the current SP
+	TAD 	tmp
+	DCA 	tmp
+	TAD I 	tmp	/ Get the address of the FOR variable
+	CIA		/ Compare it with the NEXT variable
+	TAD 	cLetDst
+	SkpNOZ
+	JMP 	NextF	/ We found the right entry
+	/
+	/ No match, so we need to move the SP even further back
+	/
+	CLA CLL
+	TAD 	iSP	/ Back the SP down five words so it points to
+	TAD 	[-5]	/ the previous entry
+	DCA 	iSP
+	JMP 	NextL	/ And go test that entry
+	/
+	/
+	/
+NextF,	
+	CLA CLL
+	TAD 	cLetDst
+	IAC
+	DCA	tmp
+	ISZ I	tmp		/ Increment low part of variable
+	JMP	NextF1
+	CLA CLL
+	TAD 	cLetDst
+	DCA	tmp
+	ISZ I	tmp		/ Increment high part of variable
+	NOP
+NextF1,
+	ISZ 	src
+
+	CLA CLL			/ Get loop address
+	TAD 	iSP
+	TAD 	[-1]
+	DCA 	tmp
+	TAD I 	tmp
+	DCA 	src		/ and continue running from there
+
+	JMP	Running
+/]
+
+
+//    ____                           ____    _  _
+//   / ___|   ___    _ __    _   _  |___ \  | || |
+//  | |      / _ \  | '_ \  | | | |   __) | | || |_
+//  | |___  | (_) | | |_) | | |_| |  / __/  |__   _|
+//   \____|  \___/  | .__/   \__, | |_____|    |_|
+//                  |_|      |___/
+//
+// Copies two words from <origin> to <target>
+//
+//  Copy24,
+//	<origin address>,
+//	<target address>
+//
+/[
+Copy24,	CLA CLL
+
+	TAD I	Copy24          / Get origin address
+	ISZ 	Copy24		/ Bump up return address
+	DCA	tmp1
+
+	TAD I	Copy24          / Get target address
+	ISZ 	Copy24		/ Bump up return address
+	DCA	tmp2
+
+	TAD I 	tmp1		/ Copy High word
+	DCA I 	tmp2
+	
+	ISZ 	tmp1		/ Copy Low word
+	ISZ	tmp2
+	TAD I 	tmp1+1
+	DCA I 	tmp2+1
+
+	JMP I 	Copy24
+/]
+
+
+
+
 //					      ____     __      ___     ___
 //					     |___ \   / /_    / _ \   / _ \
 //					       __) | | '_ \  | | | | | | | |

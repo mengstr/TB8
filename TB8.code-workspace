@@ -5,6 +5,14 @@
 		}
 	],
 	"settings": {
+		"[text]": {
+			"editor.rulers": [
+				{
+					"column": 79,
+					"color": "#ddd"
+				}
+			]
+		},
 		"files.exclude": {
 			".clang-format": true,
 			".editorconfig": true,
@@ -17,6 +25,18 @@
 			"**/CVS": false,
 			"**/main.dSYM": true
 		},
-		"editor.formatOnSave": true
+		"editor.formatOnSave": true,
+		"files.associations": {
+			"*.vt": "verilog",
+			"stddef.h": "c",
+			"PALX.C": "cpp"
+		},
+		"todo-tree.general.tags": [
+			"BUG",
+			"HACK",
+			"FIXME",
+			"TODO"
+		],
+		"editor.acceptSuggestionOnEnter": "off"
 	}
 }

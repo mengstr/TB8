@@ -5,17 +5,14 @@
 *.tmp
 *~
 
-# C building artifacts
-main.dSYM
-tb8
-a.out
-
 # Assembly building artifacts
-PAL/*.bin
-PAL/*.lst
-PAL/*.prm
-PAL/*.map
-PAL/*.rim
+*.bin
+*.lst
+*.prm
+*.map
+*.rim
 
 # Created tools
-tools/palbart
+tools/*
+
+*.core

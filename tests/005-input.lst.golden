@@ -1,0 +1,11 @@
+>LIST
+10 PRINT "Input first number:" ;
+20 INPUT A
+30 PRINT "Input second number:" ;
+40 INPUT B
+50 IF A = B THEN PRINT "The numbers are the same"
+60 IF A > B THEN PRINT "The first number is largest"
+70 IF A < B THEN PRINT "The second number is largest"
+75 PRINT ""
+80 GOTO 10
+
